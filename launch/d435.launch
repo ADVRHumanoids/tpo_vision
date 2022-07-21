@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<launch>
+
+    <include file="$(find realsense2_camera)/launch/rs_camera.launch">
+        <arg name="enable_depth" value="true" />
+        <arg name="enable_color" value="true" />
+        <arg name="enable_pointcloud" value="true" />
+        <arg name="ordered_pc" value="true" />
+        <arg name="align_depth" value="true" />
+        <arg name="camera" value="D435_head_camera" />
+    </include>
+    
+</launch>

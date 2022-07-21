@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<launch>
+
+  <arg name="camera" default="/D435_head_camera/color" />
+  <arg name="image" default="image_raw"/>
+  <arg name="transport" value="compressed" />
+
+  <node pkg="laser" name="laser_spot_detection"
+    type="laser_spot_detection2.py" output="screen" respawn="false">
+    <param name="image_topic" value="$(arg camera)/$(arg image)/$(arg transport)"/>
+    <param name="image_info_topic" value="$(arg camera)/camera_info"/>
+  </node>
+    
+</launch>

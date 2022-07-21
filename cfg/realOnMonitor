@@ -1,0 +1,33 @@
+!!python/object/new:dynamic_reconfigure.encoding.Config
+dictitems:
+  blob_param_color: 255
+  groups: !!python/object/new:dynamic_reconfigure.encoding.Config
+    dictitems:
+      blob_param_color: 255
+      groups: !!python/object/new:dynamic_reconfigure.encoding.Config
+        state: []
+      hue_max: 255
+      hue_min: 137
+      id: 0
+      name: Default
+      parameters: !!python/object/new:dynamic_reconfigure.encoding.Config
+        state: []
+      parent: 0
+      sat_max: 255
+      sat_min: 0
+      state: true
+      thresh_gray_max: 255
+      thresh_gray_min: 105
+      type: ''
+      val_max: 255
+      val_min: 235
+    state: []
+  hue_max: 255
+  hue_min: 137
+  sat_max: 255
+  sat_min: 0
+  thresh_gray_max: 255
+  thresh_gray_min: 105
+  val_max: 255
+  val_min: 235
+state: []
