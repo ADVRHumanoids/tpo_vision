@@ -23,7 +23,11 @@ LaserSpotDetection::LaserSpotDetection(
     dynamicParamF = boost::bind(&LaserSpotDetection::dynamicParamClbk, this, _1, _2);
     dynamicParamServer.setCallback(dynamicParamF);
     
+    //for detect4
     frames_buffer.set_capacity(queue_size);
+    //good values for detect4 in the office room
+    contrast = 14;
+    brightness = -120;
 }
 
 LaserSpotDetection::~LaserSpotDetection() {
@@ -31,86 +35,10 @@ LaserSpotDetection::~LaserSpotDetection() {
 }
 
 bool LaserSpotDetection::detect(const cv::Mat &frame, double &pixel_x, double &pixel_y) {
-    return detect3(frame, pixel_x, pixel_y);
+    return detect4(frame, pixel_x, pixel_y);
 }
 
-bool LaserSpotDetection::detect0(const cv::Mat &frame, double &pixel_x, double &pixel_y)
-{
-    bool ret = true;
-    
-    cv::Mat hsv_img, mask, hsv_img_thresholded, hsv_img_thresholded_gray, hsv_img_thresholded_last;
 
-    if (encoding.compare("rgb8") == 0 || encoding.compare("rgb16") == 0) {
-        cv::cvtColor(frame, hsv_img, cv::COLOR_RGB2HSV);
-
-    } else if (encoding.compare("bgr8") == 0 || encoding.compare("bgr16") == 0){
-        cv::cvtColor(frame, hsv_img, cv::COLOR_BGR2HSV);
-        
-    } else {
-        ROS_ERROR_STREAM("encoding '"<< encoding << "' not supported"); 
-        return false;
-    }
-    
-
-    //Threshold colors all united?
-    cv::inRange(hsv_img, cv::Scalar(hue_min, sat_min, val_min), cv::Scalar(hue_max, sat_max, val_max), mask);
-    cv::bitwise_and(frame, frame, hsv_img_thresholded, mask);
-    
-    //to gray
-    cv::cvtColor(hsv_img_thresholded, hsv_img_thresholded_gray, cv::COLOR_HSV2BGR);
-    cv::cvtColor(hsv_img_thresholded_gray, hsv_img_thresholded_gray, cv::COLOR_BGR2GRAY);
-    
-    cv::threshold(hsv_img_thresholded_gray, hsv_img_thresholded_last, thresh_gray_min, thresh_gray_max, cv::THRESH_BINARY);
-
-    auto params = cv::SimpleBlobDetector::Params();
-    
-    params.filterByColor = true;
-    params.blobColor = blob_param_color;
-    
-    params.filterByArea = false;
-    //params.minArea = 3;
-    //params.maxArea = 10;
-    
-    params.filterByCircularity = false;
-    //params.minCircularity = 0.5;
-    
-    params.filterByInertia = false;
-    params.filterByConvexity = false;
-
-    auto detector = cv::SimpleBlobDetector::create(params);
-    
-    std::vector<cv::KeyPoint> keypoints;
-    detector->detect(hsv_img_thresholded_last, keypoints);
-
-    if (keypoints.size() == 0) {
-        
-        ROS_ERROR_STREAM_THROTTLE (5, "no keypoints found!");
-        ret = false;
-        
-    } else {
-        pixel_x = keypoints.at(0).pt.x;
-        pixel_y = keypoints.at(0).pt.y;
-    }
-    
-    if (keypoints.size() > 1) {
-        ROS_WARN_STREAM("more than one keypoint found, I am returing the first one");
-        //ret = false;
-    }
-            
-    if (show_images) {
-        cv::imshow("mask for bitwise and", mask);
-        cv::imshow("after bitwise and", hsv_img_thresholded);
-        
-        cv::Mat im_with_keypoints;
-        cv::drawKeypoints(hsv_img_thresholded_last, keypoints, im_with_keypoints, cv::Scalar(0,255,0), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
-        cv::imshow("im_with_keypoints", im_with_keypoints);
-   
-        cv::waitKey(1);
-    }
-    
-    return ret;
-    
-}
 
 /**
  * WITH Background subtraction 
@@ -120,21 +48,20 @@ bool LaserSpotDetection::detect4(const cv::Mat &frame, double &pixel_x, double &
 {
     bool ret = true;
     
-
     cv::Mat frame_filtered;
     cv::Mat hsv_img, hv_thresh, hv_thresh_blur;
     cv::Mat hsv_channels[3];
     cv::Mat hsv_channels_thresh[3];
     
-    frames_buffer.push_back(frame);
-    cv::Mat tot = cv::Mat::zeros(frame.size(), CV_32FC3);
+    cv::Mat converted;
+    frame.convertTo(converted, CV_32FC3);
+    frames_buffer.push_back(converted);
     
-    for (const auto fr : frames_buffer) {
-        cv::Mat converted;
-        fr.convertTo(converted, CV_32FC3);
-        tot += converted;
+    frames_buffer_sum = cv::Mat::zeros(frame.size(), CV_32FC3);
+    for (const auto & fr : frames_buffer) {
+        frames_buffer_sum += fr;
     }
-    cv::Mat mean = tot / frames_buffer.size();
+    cv::Mat mean = frames_buffer_sum / frames_buffer.size();
     cv::Mat mean_conv;
     mean.convertTo(mean_conv, frame.type());
     
@@ -146,7 +73,19 @@ bool LaserSpotDetection::detect4(const cv::Mat &frame, double &pixel_x, double &
    // - it seems after background subtraction the value channel is good to check for the spot (after thresholding it)
    // - some logic to to "detect" camera and/or enviornment movments and wait for background stabilization?
     
+    if (encoding.compare("rgb8") == 0 || encoding.compare("rgb16") == 0) {
+            cv::cvtColor(frame_filtered, hsv_img, cv::COLOR_RGB2HSV);
 
+    } else if (encoding.compare("bgr8") == 0 || encoding.compare("bgr16") == 0){
+        cv::cvtColor(frame_filtered, hsv_img, cv::COLOR_BGR2HSV);
+        
+    } else {
+        ROS_ERROR_STREAM("encoding '"<< encoding << "' not supported"); 
+        return false;
+    }
+    
+    //split hsv
+    cv::split(hsv_img, hsv_channels);
 
     auto params = cv::SimpleBlobDetector::Params();
     
@@ -166,7 +105,7 @@ bool LaserSpotDetection::detect4(const cv::Mat &frame, double &pixel_x, double &
     auto detector = cv::SimpleBlobDetector::create(params);
     
     std::vector<cv::KeyPoint> keypoints;
-    detector->detect(hv_thresh, keypoints);
+    detector->detect(hsv_channels[2], keypoints);
 
     if (keypoints.size() == 0) {
         
@@ -189,11 +128,11 @@ bool LaserSpotDetection::detect4(const cv::Mat &frame, double &pixel_x, double &
     if (show_images) {
         cv::imshow("original", frame);
         cv::imshow("after blurring", frame_filtered);
-        //cv::imshow("hsv", hsv_img);
-        cv::imshow("h_th", hsv_channels_thresh[0]);
-        cv::imshow("s_th", hsv_channels_thresh[1]);
-        cv::imshow("v_th", hsv_channels_thresh[2]);
-        cv::imshow("and of hue and value after respective thresholds", hv_thresh);
+        cv::imshow("hsv", hsv_img);
+        cv::imshow("h", hsv_channels[0]);
+        cv::imshow("s", hsv_channels[1]);
+        cv::imshow("v", hsv_channels[2]);
+        //cv::imshow("and of hue and value after respective thresholds", hv_thresh);
         //cv::imshow("hv_thresh_blur", hv_thresh_blur);
         
         cv::Mat im_with_keypoints;
@@ -316,6 +255,85 @@ bool LaserSpotDetection::detect3(const cv::Mat &frame, double &pixel_x, double &
         
         cv::Mat im_with_keypoints;
         cv::drawKeypoints(frame, keypoints, im_with_keypoints, cv::Scalar(0,255,0), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+        cv::imshow("im_with_keypoints", im_with_keypoints);
+   
+        cv::waitKey(1);
+    }
+    
+    return ret;
+    
+}
+
+/************************************************************************************************ */
+bool LaserSpotDetection::detect0(const cv::Mat &frame, double &pixel_x, double &pixel_y)
+{
+    bool ret = true;
+    
+    cv::Mat hsv_img, mask, hsv_img_thresholded, hsv_img_thresholded_gray, hsv_img_thresholded_last;
+
+    if (encoding.compare("rgb8") == 0 || encoding.compare("rgb16") == 0) {
+        cv::cvtColor(frame, hsv_img, cv::COLOR_RGB2HSV);
+
+    } else if (encoding.compare("bgr8") == 0 || encoding.compare("bgr16") == 0){
+        cv::cvtColor(frame, hsv_img, cv::COLOR_BGR2HSV);
+        
+    } else {
+        ROS_ERROR_STREAM("encoding '"<< encoding << "' not supported"); 
+        return false;
+    }
+    
+
+    //Threshold colors all united?
+    cv::inRange(hsv_img, cv::Scalar(hue_min, sat_min, val_min), cv::Scalar(hue_max, sat_max, val_max), mask);
+    cv::bitwise_and(frame, frame, hsv_img_thresholded, mask);
+    
+    //to gray
+    cv::cvtColor(hsv_img_thresholded, hsv_img_thresholded_gray, cv::COLOR_HSV2BGR);
+    cv::cvtColor(hsv_img_thresholded_gray, hsv_img_thresholded_gray, cv::COLOR_BGR2GRAY);
+    
+    cv::threshold(hsv_img_thresholded_gray, hsv_img_thresholded_last, thresh_gray_min, thresh_gray_max, cv::THRESH_BINARY);
+
+    auto params = cv::SimpleBlobDetector::Params();
+    
+    params.filterByColor = true;
+    params.blobColor = blob_param_color;
+    
+    params.filterByArea = false;
+    //params.minArea = 3;
+    //params.maxArea = 10;
+    
+    params.filterByCircularity = false;
+    //params.minCircularity = 0.5;
+    
+    params.filterByInertia = false;
+    params.filterByConvexity = false;
+
+    auto detector = cv::SimpleBlobDetector::create(params);
+    
+    std::vector<cv::KeyPoint> keypoints;
+    detector->detect(hsv_img_thresholded_last, keypoints);
+
+    if (keypoints.size() == 0) {
+        
+        ROS_ERROR_STREAM_THROTTLE (5, "no keypoints found!");
+        ret = false;
+        
+    } else {
+        pixel_x = keypoints.at(0).pt.x;
+        pixel_y = keypoints.at(0).pt.y;
+    }
+    
+    if (keypoints.size() > 1) {
+        ROS_WARN_STREAM("more than one keypoint found, I am returing the first one");
+        //ret = false;
+    }
+            
+    if (show_images) {
+        cv::imshow("mask for bitwise and", mask);
+        cv::imshow("after bitwise and", hsv_img_thresholded);
+        
+        cv::Mat im_with_keypoints;
+        cv::drawKeypoints(hsv_img_thresholded_last, keypoints, im_with_keypoints, cv::Scalar(0,255,0), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
         cv::imshow("im_with_keypoints", im_with_keypoints);
    
         cv::waitKey(1);

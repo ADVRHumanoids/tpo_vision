@@ -79,6 +79,8 @@ private:
     cv::Mat queue_frame;
     unsigned queue_size = 10;
     boost::circular_buffer<cv::Mat> frames_buffer;
+    cv::Mat frames_buffer_sum;
+
 
     
     /*********************************** */
