@@ -91,7 +91,6 @@ int Laser3DTracking::run () {
     double pixel_x, pixel_y;
     
     if (laserSpotDetection->detect(cv_bridge_image.image, pixel_x, pixel_y)){
-    //if (laserSpotDetection->detect2(cv_bridge_image.image, pixel_x, pixel_y)){
     
         sendTransformFrom2D(pixel_x, pixel_y);
     }

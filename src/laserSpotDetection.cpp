@@ -26,8 +26,10 @@ LaserSpotDetection::LaserSpotDetection(
     //for detect4
     frames_buffer.set_capacity(queue_size);
     //good values for detect4 in the office room
-    contrast = 14;
-    brightness = -120;
+    //contrast = 14;
+    //brightness = -120;
+    contrast = 2;
+    brightness = 1;
 }
 
 LaserSpotDetection::~LaserSpotDetection() {
@@ -35,14 +37,13 @@ LaserSpotDetection::~LaserSpotDetection() {
 }
 
 bool LaserSpotDetection::detect(const cv::Mat &frame, double &pixel_x, double &pixel_y) {
-    return detect4(frame, pixel_x, pixel_y);
+    return detect3(frame, pixel_x, pixel_y);
 }
 
 
 
 /**
  * WITH Background subtraction 
- * TODO finish it
  */
 bool LaserSpotDetection::detect4(const cv::Mat &frame, double &pixel_x, double &pixel_y)
 {
@@ -67,14 +68,14 @@ bool LaserSpotDetection::detect4(const cv::Mat &frame, double &pixel_x, double &
     
     frame_filtered = frame - mean_conv;
     
+    //contrast 2.2 and bright 0 seems good
     frame_filtered = contrast * frame_filtered + brightness;
     
    //TODO complete this
-   // - it seems after background subtraction the value channel is good to check for the spot (after thresholding it)
    // - some logic to to "detect" camera and/or enviornment movments and wait for background stabilization?
     
     if (encoding.compare("rgb8") == 0 || encoding.compare("rgb16") == 0) {
-            cv::cvtColor(frame_filtered, hsv_img, cv::COLOR_RGB2HSV);
+        cv::cvtColor(frame_filtered, hsv_img, cv::COLOR_RGB2HSV);
 
     } else if (encoding.compare("bgr8") == 0 || encoding.compare("bgr16") == 0){
         cv::cvtColor(frame_filtered, hsv_img, cv::COLOR_BGR2HSV);
