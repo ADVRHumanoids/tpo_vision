@@ -1,0 +1,15 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Aug 12 17:15:30 2022
+
+@author: tori
+"""
+import json
+
+filePath = 'data/coco/instances_default.json'
+with open(filePath, 'r') as f:
+  data = json.load(f)
+  
+for annotation in data["annotations"]:
+    print(annotation)
