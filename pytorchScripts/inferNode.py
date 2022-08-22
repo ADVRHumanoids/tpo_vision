@@ -8,15 +8,11 @@ Created on Fri Aug 19 10:48:52 2022
 import torch
 import torchvision.transforms as T
 
-import matplotlib.pyplot as plt
-
-import sys
-
-from drawBoxes import show_image_with_boxes, load_example_image
+from drawBoxes import show_image_with_boxes, load_example_image, show_image_with_boxes_opencv, run_example
 
 if __name__ == '__main__':
     
-    img, info = load_example_image()
+    img, info = load_example_image()   
     
     if torch.cuda.is_available():
         device = torch.device('cuda')
