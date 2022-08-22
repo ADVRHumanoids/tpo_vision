@@ -16,9 +16,7 @@
 
 #include <tpo_vision/laserSpotDetection.h>
 
-LaserSpotDetection::LaserSpotDetection(
-    unsigned int cam_width, unsigned int cam_height, std::string encoding, bool show_images):
-    cam_width(cam_width), cam_height(cam_height), encoding(encoding), show_images(show_images)
+LaserSpotDetection::LaserSpotDetection(ros::NodeHandle* nh)
 {
     dynamicParamF = boost::bind(&LaserSpotDetection::dynamicParamClbk, this, _1, _2);
     dynamicParamServer.setCallback(dynamicParamF);
@@ -30,16 +28,128 @@ LaserSpotDetection::LaserSpotDetection(
     //brightness = -120;
     contrast = 2;
     brightness = 1;
+    
+    /******************* ROS Stuff ***************/
+    this->nh = nh;
+    std::string camera_image_topic, camera_image_transport, camera_info_topic, pub_out_keypoint_topic, pub_out_images_topic;
+    nh->param<std::string>("camera_image_topic", camera_image_topic, "/D435_head_camera/color/image_raw");
+    nh->param<std::string>("transport", camera_image_transport, "compressed");
+    nh->param<std::string>("camera_info_topic", camera_info_topic, "/D435_head_camera/color/camera_info");
+    
+    
+    nh->param<std::string>("pub_out_keypoint_topic", pub_out_keypoint_topic, "detection_output_keypoint");
+
+    nh->param<bool>("pub_out_images", pub_out_images, true);
+    nh->param<std::string>("pub_out_images_topic", pub_out_images_topic, "detection_output_img/compressed");
+
+    //Draw onpecv image directly inside this class for debugging
+    nh->param<bool>("show_images", show_images, false);
+
+    camera_info_sub = nh->subscribe<sensor_msgs::CameraInfo>(camera_info_topic, 1, &LaserSpotDetection::cameraInfoClbk, this);
+
+    color_image_transport = std::make_unique<image_transport::ImageTransport>(*(this->nh));
+    //color_image_sub = nh->subscribe<sensor_msgs::CompressedImage>(camera_image_topic, 1, &LaserSpotDetection::colorImageClbk, this);
+
+    color_image_sub = color_image_transport->subscribe(
+        camera_image_topic, 1, &LaserSpotDetection::colorImageClbk, this, image_transport::TransportHints(camera_image_transport));
+    
+    keypoint_pub = nh->advertise<tpo_msgs::KeypointImage>(pub_out_keypoint_topic, 10);
+
+    if (pub_out_images) {
+        output_image_pub = nh->advertise<sensor_msgs::CompressedImage>(pub_out_images_topic, 10);
+    }
+    
 }
 
 LaserSpotDetection::~LaserSpotDetection() {
     cv::destroyAllWindows();
 }
 
-bool LaserSpotDetection::detect(const cv::Mat &frame, double &pixel_x, double &pixel_y) {
-    return detect3(frame, pixel_x, pixel_y);
+
+
+bool LaserSpotDetection::run() {
+    
+    double pixel_x;
+    double pixel_y;
+    double confidence;
+    
+    if (!detect3(cv_bridge_image.image, pixel_x, pixel_y)) {
+        
+        return false;
+    }
+    
+    tpo_msgs::KeypointImage msg;
+    msg.header.frame_id = ros_image_input.header.frame_id;
+    msg.header.seq = ros_image_input.header.seq;
+    msg.header.stamp = ros::Time::now();
+    
+    msg.x_pixel = pixel_x;
+    msg.y_pixel = pixel_y;
+    msg.label = 1;
+    msg.confidence = confidence;
+    
+    keypoint_pub.publish(msg);
+    
+    if (pub_out_images) {
+        
+        sensor_msgs::Image msg;
+        cv_bridge_output_image.image = cv_bridge_image.image;
+        cv::circle(cv_bridge_output_image.image, cv::Point(pixel_x, pixel_y), 10, cv::Scalar(0,0,255), 3);
+        output_image_pub.publish(cv_bridge_output_image.toCompressedImageMsg());
+        
+    }
+    
+    return true; 
 }
 
+bool LaserSpotDetection::isReady() {
+    
+    if (cam_info == nullptr) {
+        ROS_WARN_STREAM_ONCE("Camera info not yet arrived...");
+        return false;
+    } else {
+        ROS_WARN_STREAM_ONCE("... Camera info arrived");
+    }
+    
+    if (cv_bridge_image.image.empty()) {
+        ROS_WARN_STREAM_ONCE("Image not yet arrived");
+        return false;
+    } else {
+        ROS_WARN_STREAM_ONCE("... Image arrived");
+    }  
+    
+    return true;
+}
+
+void LaserSpotDetection::cameraInfoClbk(const sensor_msgs::CameraInfoConstPtr& msg) {
+    
+    cam_info = msg;
+    
+    camera_info_sub.shutdown();
+}
+
+void LaserSpotDetection::colorImageClbk(const sensor_msgs::ImageConstPtr& msg) {
+    
+    try
+    {
+        //IDK why I have to put BGR8 even if everything is RGB otherwise wrong colors
+        ros_image_input = *msg;
+        cv_bridge_image = *(cv_bridge::toCvShare(msg, sensor_msgs::image_encodings::BGR8));
+    }
+    catch (cv_bridge::Exception& e)
+    {
+        ROS_ERROR("cv_bridge exception: %s", e.what());
+        return;
+    }
+    
+//     std::cout << msg->encoding << std::endl;
+//     std::cout << cv_bridge_image.encoding << std::endl;
+//     cv_bridge::CvImage cv_bridge_image_test;
+//     cv_bridge_image_test = *(cv_bridge::toCvShare(msg, sensor_msgs::image_encodings::BGR8));
+//     std::cout << cv_bridge_image_test.encoding << std::endl;
+
+    
+}
 
 
 /**
@@ -406,4 +516,36 @@ void LaserSpotDetection::dynamicParamClbk(tpo_vision::LaserSpotDetectionParamsCo
     contrast = config.contrast;
     brightness = config.brightness;
   
+}
+
+int main ( int argc, char **argv ) {
+
+    ros::init ( argc, argv, "LaserSpotDetection" );
+    ros::NodeHandle nh("~");
+    
+    LaserSpotDetection laserSpotDetection(&nh);
+    
+    ros::Rate r0(100);
+    while(ros::ok()) {
+        
+        if (laserSpotDetection.isReady()) {
+            break;
+        }
+
+        ros::spinOnce();
+        r0.sleep();
+    }
+    
+    
+    ros::Rate r(10);
+    while(ros::ok()) {
+        
+        laserSpotDetection.run();
+
+        ros::spinOnce();
+        r.sleep();
+    }
+    
+    return 0;
+    
 }

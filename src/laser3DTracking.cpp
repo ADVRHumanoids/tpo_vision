@@ -24,32 +24,23 @@ Laser3DTracking::Laser3DTracking (ros::NodeHandle* nh) {
     
     std::string pc_topic, image_topic, camera_info_topic, image_transport;
     nh->param<std::string>("point_cloud_topic", pc_topic, "/D435_head_camera/depth/color/points");
-    nh->param<std::string>("image_topic", image_topic, "/D435_head_camera/color/image_raw");
-    nh->param<std::string>("transport", image_transport, "compressed");
-    nh->param<std::string>("camera_info_topic", camera_info_topic, "/D435_head_camera/color/camera_info");
     
     nh->param<std::string>("ref_frame", ref_frame, "pelvis");
     nh->param<std::string>("laser_spot_frame", laser_spot_frame, "laser_spot");
     nh->param<std::string>("camera_frame", camera_frame, "D435_head_camera_color_optical_frame");
-    nh->param<bool>("show_images", show_images, true);
+    
+    std::string keypoint_topic;
+    nh->param<std::string>("keypoint_topic", keypoint_topic, "detection_output_keypoint");
+    
+    keypoint_sub = nh->subscribe<tpo_msgs::KeypointImage>(keypoint_topic, 10, &Laser3DTracking::keypointSubClbk, this);
      
     /******************* CLOUD ***************************/
     cloud_sub = nh->subscribe<PointCloud>(pc_topic, 1, &Laser3DTracking::cloudClbk, this);
     cloud = boost::make_shared<PointCloud>();
     
-    /******************* COLOR IMAGES ***************************/
-    camera_info_sub = nh->subscribe<sensor_msgs::CameraInfo>(camera_info_topic, 1, &Laser3DTracking::cameraInfoClbk, this);
-
-    color_image_transport = std::make_unique<image_transport::ImageTransport>(*(this->nh));
-    //color_image_sub = nh->subscribe<sensor_msgs::CompressedImage>(image_topic, 1, &Laser3DTracking::colorImageClbk, this);
-    
-    color_image_sub = color_image_transport->subscribe(
-        image_topic, 1, &Laser3DTracking::colorImageClbk, this, image_transport::TransportHints(image_transport));
-
-    
     ref_T_spot.header.frame_id = ref_frame;
     ref_T_spot.child_frame_id = laser_spot_frame;
-
+    
 }
 
 bool Laser3DTracking::isReady() {
@@ -61,23 +52,13 @@ bool Laser3DTracking::isReady() {
         ROS_WARN_STREAM_ONCE("... Point cloud arrived");
     }
     
-    if (cam_info == nullptr) {
-        ROS_WARN_STREAM_ONCE("Camera info not yet arrived...");
+    if (keypoint_sub.getNumPublishers() < 1) {
+        ROS_WARN_STREAM_ONCE("Nobody is publishing the 2d keypoints on '"<< keypoint_sub.getTopic() << "'...");
         return false;
     } else {
-        ROS_WARN_STREAM_ONCE("... Camera info arrived");
+        ROS_WARN_STREAM_ONCE("Someone is publishing the 2d keypoints on '"<< keypoint_sub.getTopic() << "'...");
+
     }
-    
-    if (cv_bridge_image.image.empty()) {
-        ROS_WARN_STREAM_ONCE("Image not yet arrived");
-        return false;
-    } else {
-        ROS_WARN_STREAM_ONCE("... Image arrived");
-    }
-    
-    
-    laserSpotDetection = std::make_unique<LaserSpotDetection>(cam_info->width, cam_info->height, cv_bridge_image.encoding, show_images);
-    laserSpotDetection->show_images = true;
     
     ROS_INFO_STREAM("Ready!");
     return true;
@@ -88,11 +69,12 @@ int Laser3DTracking::run () {
     //change reference frame
     pcl_ros::transformPointCloud (ref_frame, *cloud, *cloud, tf_buffer);
     
-    double pixel_x, pixel_y;
+    if (keypoint_image.confidence <= 0 ){
     
-    if (laserSpotDetection->detect(cv_bridge_image.image, pixel_x, pixel_y)){
-    
-        sendTransformFrom2D(pixel_x, pixel_y);
+        sendTransformFrom2D(keypoint_image.x_pixel, keypoint_image.y_pixel);
+    } else {
+        ROS_WARN_STREAM("Confidence of arrived keypoint detection message is zero!'");
+
     }
 
     return 0;
@@ -128,7 +110,13 @@ void Laser3DTracking::cloudClbk(const PointCloud::ConstPtr& msg)
     *cloud = *msg;
 }
 
+void Laser3DTracking::keypointSubClbk(const tpo_msgs::KeypointImageConstPtr& msg)
+{
+    keypoint_image = *msg;
+}
 
+
+/**
 void Laser3DTracking::cameraInfoClbk(const sensor_msgs::CameraInfoConstPtr& msg) {
     
     cam_info = msg;
@@ -152,29 +140,7 @@ void Laser3DTracking::cameraInfoClbk(const sensor_msgs::CameraInfoConstPtr& msg)
     
     camera_info_sub.shutdown();
 }
-
-void Laser3DTracking::colorImageClbk(const sensor_msgs::ImageConstPtr& msg) {
-    
-    
-    try
-    {
-        //IDK why I have to put BGR8 even if everything is RGB otherwise wrong colors
-        cv_bridge_image = *(cv_bridge::toCvShare(msg, sensor_msgs::image_encodings::BGR8));
-    }
-    catch (cv_bridge::Exception& e)
-    {
-        ROS_ERROR("cv_bridge exception: %s", e.what());
-        return;
-    }
-    
-//     std::cout << msg->encoding << std::endl;
-//     std::cout << cv_bridge_image.encoding << std::endl;
-//     cv_bridge::CvImage cv_bridge_image_test;
-//     cv_bridge_image_test = *(cv_bridge::toCvShare(msg, sensor_msgs::image_encodings::BGR8));
-//     std::cout << cv_bridge_image_test.encoding << std::endl;
-
-    
-}
+**/
 
 
 

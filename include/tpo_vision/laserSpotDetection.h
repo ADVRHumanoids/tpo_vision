@@ -18,15 +18,21 @@
 #define LASERSPOTDETECTION_H
 
 #include <ros/ros.h>
+#include <ros/console.h>
+#include <image_transport/image_transport.h>
+#include <sensor_msgs/CameraInfo.h>
+#include <sensor_msgs/Image.h>
+#include <sensor_msgs/CompressedImage.h>
 #include <dynamic_reconfigure/server.h>
 #include <tpo_vision/LaserSpotDetectionParamsConfig.h>
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/features2d.hpp>
+#include <cv_bridge/cv_bridge.h>
 
 #include <boost/circular_buffer.hpp>
 
-
+#include <tpo_msgs/KeypointImage.h>
 
 class LaserSpotDetection
 {
@@ -45,19 +51,41 @@ public:
     * ``display_thresholds`` -- if True, additional windows will display
         values for threshold image channels.
      */
-    LaserSpotDetection(unsigned int cam_width = 1280, unsigned int cam_height=720, std::string encoding="rgb8", bool show_images = false);
-    
+    LaserSpotDetection(ros::NodeHandle* nh);
+
     ~LaserSpotDetection();
+    
+
+    bool isReady();
+    bool run(); 
+
+    
+private: 
+    
+    ros::NodeHandle* nh;
+    
+    ros::Subscriber camera_info_sub;
+    void cameraInfoClbk(const sensor_msgs::CameraInfoConstPtr& msg);
+    sensor_msgs::CameraInfoConstPtr cam_info;
+    
+    std::unique_ptr<image_transport::ImageTransport> color_image_transport;
+    image_transport::Subscriber color_image_sub;
+    sensor_msgs::Image ros_image_input;
+    void colorImageClbk(const sensor_msgs::ImageConstPtr& msg);
+    cv_bridge::CvImage cv_bridge_image;
     
     unsigned int cam_width;
     unsigned int cam_height;
     std::string encoding;
+    
+    ros::Publisher keypoint_pub;
+    
+    bool pub_out_images;
+    ros::Publisher output_image_pub;
+    cv_bridge::CvImage cv_bridge_output_image;
+    
     bool show_images;
     
-    bool detect(const cv::Mat &frame, double &pixel_x, double &pixel_y); 
-
-    
-private:  
     /*********************************** */
     bool detect0(const cv::Mat &frame, double &pixel_x, double &pixel_y);
 
@@ -83,10 +111,9 @@ private:
 
 
     
-    /*********************************** */
     bool detect2(const cv::Mat &frame, double &pixel_x, double &pixel_y);
 
-
+    /*********************************** */
     dynamic_reconfigure::Server<tpo_vision::LaserSpotDetectionParamsConfig> dynamicParamServer;
     void dynamicParamClbk(tpo_vision::LaserSpotDetectionParamsConfig &config, uint32_t level);
     dynamic_reconfigure::Server<tpo_vision::LaserSpotDetectionParamsConfig>::CallbackType dynamicParamF;

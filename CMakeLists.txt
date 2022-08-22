@@ -81,13 +81,7 @@ include_directories(
 #   src/${PROJECT_NAME}/tpo_vision.cpp
 # )
 
-add_library(${PROJECT_NAME}_laserSpotDetection src/laserSpotDetection.cpp)
-target_link_libraries(${PROJECT_NAME}_laserSpotDetection
-    ${catkin_LIBRARIES}
-    ${OpenCV_LIBS} 
-)
-add_dependencies( ${PROJECT_NAME}_laserSpotDetection
-    ${PROJECT_NAME}_gencfg)
+
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
@@ -114,7 +108,16 @@ target_link_libraries(${PROJECT_NAME}_laser3DTracking
     ${catkin_LIBRARIES}
     pcl_visualization
     ${OpenCV_LIBS}
-    ${PROJECT_NAME}_laserSpotDetection
+)
+
+add_executable(${PROJECT_NAME}_laserSpotDetection src/laserSpotDetection.cpp)
+set_target_properties(${PROJECT_NAME}_laserSpotDetection PROPERTIES OUTPUT_NAME laserSpotDetection PREFIX "")
+target_link_libraries(${PROJECT_NAME}_laserSpotDetection
+    ${catkin_LIBRARIES}
+    ${OpenCV_LIBS} 
+)
+add_dependencies( ${PROJECT_NAME}_laserSpotDetection
+    ${PROJECT_NAME}_gencfg
 )
 
 
