@@ -1,5 +1,7 @@
 <?xml version="1.0"?>
 <launch>
+    
+    <env name="ROSCONSOLE_FORMAT" value="[${severity}] [${time}] [${node}] [${function}] [${line}]: ${message}"/>
 
     <arg name="camera" default="D435_head_camera"/>
     <arg name="image" default="color/image_raw"/>
@@ -10,9 +12,13 @@
     <arg name="ref_frame" default="$(arg camera)_color_optical_frame" />
     <arg name="camera_frame" default="$(arg camera)_color_optical_frame" />
     
+    <arg name="detection_confidence_threshold" default="0.2" />
+    <arg name="cloud_detection_max_sec_diff" default="1" />
+    
     <arg name="keypoint_topic" default="/detection_output_keypoint" />
     <arg name="pub_out_images" default="true" />
-    <arg name="pub_out_images_topic" default="detection_output_img/compressed" />
+    <arg name="pub_out_images_topic" default="/detection_output_img" />
+    
     <arg name="show_images" default="false" />
     
     <node pkg="tpo_vision" name="laser3DTracking"
@@ -23,11 +29,14 @@
         <param name="laser_spot_frame" value="laser_spot"/>
         <param name="camera_frame" value="$(arg camera_frame)"/>
         
+        <param name="detection_confidence_threshold" value="$(arg detection_confidence_threshold)"/>
+        <param name="cloud_detection_max_sec_diff" value="$(arg cloud_detection_max_sec_diff)"/>
+        
         <param name="keypoint_topic" value="$(arg keypoint_topic)"/>
         
     </node>
     
-    <!-- <node pkg="tpo_vision" name="laserSpotDetection"
+   <!-- <node pkg="tpo_vision" name="laserSpotDetection"
         type="laserSpotDetection" output="screen" respawn="false">
         <param name="camera_image_topic" value="/$(arg camera)/$(arg image)"/>
         <param name="transport" value="$(arg transport)"/>
@@ -38,7 +47,7 @@
         <param name="pub_out_images_topic" value="$(arg pub_out_images_topic)"/>
 
         <param name="show_images" value="$(arg show_images)"/>
-        </node> -->
+    </node> -->
     <node pkg="tpo_vision" name="laserSpotDetectionDL"
         type="inferNodeROS.py" output="screen" respawn="false">
         <param name="camera_image_topic" value="/$(arg camera)/$(arg image)"/>

@@ -12,7 +12,13 @@ from torchvision.utils import draw_bounding_boxes
 import torchvision.transforms as T
 from PIL import Image
 
-import cv2
+import imp
+try:
+    imp.find_module('cv2')
+    opencv_found = True
+except ImportError:
+    opencv_found = False
+    print("opencv2 not found")
 
 import sys
 from CustomCocoDataset import CustomCocoDataset
@@ -52,26 +58,27 @@ def show_image_with_boxes(img, boxes, labels=None):
 @param img is tensor format
 @boxes Tensor of size [N,4] containing bounding boxes coordinates in (xmin, ymin, xmax, ymax) format.
 """    
-def show_image_with_boxes_opencv(img, boxes, labels=None):
+if opencv_found:
+    def show_image_with_boxes_opencv(img, boxes, labels=None):
+        
+        #box from model has format: [x_0, y_0, x_1, y_1]
+        #cv2.rectangle(cv_image, (x0, y1), (x1, y0), (255,0,0), 2)
     
-    #box from model has format: [x_0, y_0, x_1, y_1]
-    #cv2.rectangle(cv_image, (x0, y1), (x1, y0), (255,0,0), 2)
-
-    cv_image = torchvision.transforms.functional.convert_image_dtype(
-                img.cpu(), torch.uint8).numpy().transpose([1,2,0])
-
-    cv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
+        cv_image = torchvision.transforms.functional.convert_image_dtype(
+                    img.cpu(), torch.uint8).numpy().transpose([1,2,0])
     
-    for box in boxes:
-        cv2.rectangle(cv_image, (round(box[0].item()), round(box[1].item())),
-                                (round(box[2].item()), round(box[3].item())),
-                                (255,0,0), 2)
-
+        cv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
+        
+        for box in boxes:
+            cv2.rectangle(cv_image, (round(box[0].item()), round(box[1].item())),
+                                    (round(box[2].item()), round(box[3].item())),
+                                    (255,0,0), 2)
     
-    cv2.imshow("test_boxes", cv_image)
-    cv2.waitKey()
-    
-    #TODO label draw
+        
+        cv2.imshow("test_boxes", cv_image)
+        cv2.waitKey()
+        
+        #TODO label draw
 
 
     

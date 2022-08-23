@@ -188,4 +188,4 @@ if __name__ == '__main__':
         
     
     
-    torch.save(model, "model1.pt")
+    torch.save(model, "model2.pt")

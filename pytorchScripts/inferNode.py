@@ -8,7 +8,7 @@ Created on Fri Aug 19 10:48:52 2022
 import torch
 import torchvision.transforms as T
 
-from drawBoxes import show_image_with_boxes, load_example_image, show_image_with_boxes_opencv, run_example
+from drawBoxes import show_image_with_boxes, load_example_image, run_example
 
 if __name__ == '__main__':
     

@@ -74,15 +74,14 @@ private:
     void colorImageClbk(const sensor_msgs::ImageConstPtr& msg);
     cv_bridge::CvImage cv_bridge_image;
     
-    unsigned int cam_width;
-    unsigned int cam_height;
-    std::string encoding;
-    
     ros::Publisher keypoint_pub;
+    void pubKeypoint(int pixel_x, int pixel_y, double confidence);
     
     bool pub_out_images;
-    ros::Publisher output_image_pub;
+    image_transport::Publisher output_image_pub;
     cv_bridge::CvImage cv_bridge_output_image;
+    void pubImageWithRectangle(int pixel_x, int pixel_y);
+    
     
     bool show_images;
     

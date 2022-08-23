@@ -36,11 +36,10 @@ LaserSpotDetection::LaserSpotDetection(ros::NodeHandle* nh)
     nh->param<std::string>("transport", camera_image_transport, "compressed");
     nh->param<std::string>("camera_info_topic", camera_info_topic, "/D435_head_camera/color/camera_info");
     
-    
     nh->param<std::string>("pub_out_keypoint_topic", pub_out_keypoint_topic, "detection_output_keypoint");
 
     nh->param<bool>("pub_out_images", pub_out_images, true);
-    nh->param<std::string>("pub_out_images_topic", pub_out_images_topic, "detection_output_img/compressed");
+    nh->param<std::string>("pub_out_images_topic", pub_out_images_topic, "detection_output_img");
 
     //Draw onpecv image directly inside this class for debugging
     nh->param<bool>("show_images", show_images, false);
@@ -56,7 +55,7 @@ LaserSpotDetection::LaserSpotDetection(ros::NodeHandle* nh)
     keypoint_pub = nh->advertise<tpo_msgs::KeypointImage>(pub_out_keypoint_topic, 10);
 
     if (pub_out_images) {
-        output_image_pub = nh->advertise<sensor_msgs::CompressedImage>(pub_out_images_topic, 10);
+        output_image_pub = color_image_transport->advertise(pub_out_images_topic, 1);
     }
     
 }
@@ -71,32 +70,19 @@ bool LaserSpotDetection::run() {
     
     double pixel_x;
     double pixel_y;
-    double confidence;
+    double confidence = 1.0;
     
     if (!detect3(cv_bridge_image.image, pixel_x, pixel_y)) {
         
         return false;
     }
     
-    tpo_msgs::KeypointImage msg;
-    msg.header.frame_id = ros_image_input.header.frame_id;
-    msg.header.seq = ros_image_input.header.seq;
-    msg.header.stamp = ros::Time::now();
-    
-    msg.x_pixel = pixel_x;
-    msg.y_pixel = pixel_y;
-    msg.label = 1;
-    msg.confidence = confidence;
-    
-    keypoint_pub.publish(msg);
-    
+    pubKeypoint(std::lround(pixel_x), std::lround(pixel_y), confidence);
+
     if (pub_out_images) {
         
-        sensor_msgs::Image msg;
-        cv_bridge_output_image.image = cv_bridge_image.image;
-        cv::circle(cv_bridge_output_image.image, cv::Point(pixel_x, pixel_y), 10, cv::Scalar(0,0,255), 3);
-        output_image_pub.publish(cv_bridge_output_image.toCompressedImageMsg());
-        
+        pubImageWithRectangle(std::lround(pixel_x), std::lround(pixel_y));
+
     }
     
     return true; 
@@ -119,6 +105,30 @@ bool LaserSpotDetection::isReady() {
     }  
     
     return true;
+}
+
+void LaserSpotDetection::pubKeypoint(int pixel_x, int pixel_y, double confidence) {
+        
+    tpo_msgs::KeypointImage msg;
+    msg.header.frame_id = ros_image_input.header.frame_id;
+    msg.header.seq = ros_image_input.header.seq;
+    msg.header.stamp = ros::Time::now();
+
+    msg.x_pixel = pixel_x;
+    msg.y_pixel = pixel_y;
+    msg.label = 1;
+    msg.confidence = confidence;
+
+    keypoint_pub.publish(msg);
+}
+
+void LaserSpotDetection::pubImageWithRectangle(int pixel_x, int pixel_y) {
+    
+    cv_bridge_output_image = cv_bridge_image;
+
+    cv::circle(cv_bridge_output_image.image, cv::Point(pixel_x, pixel_y), 10, cv::Scalar(0,0,255), 3);
+
+    output_image_pub.publish(cv_bridge_output_image.toImageMsg());
 }
 
 void LaserSpotDetection::cameraInfoClbk(const sensor_msgs::CameraInfoConstPtr& msg) {
@@ -184,14 +194,14 @@ bool LaserSpotDetection::detect4(const cv::Mat &frame, double &pixel_x, double &
    //TODO complete this
    // - some logic to to "detect" camera and/or enviornment movments and wait for background stabilization?
     
-    if (encoding.compare("rgb8") == 0 || encoding.compare("rgb16") == 0) {
+    if (cv_bridge_image.encoding.compare("rgb8") == 0 || cv_bridge_image.encoding.compare("rgb16") == 0) {
         cv::cvtColor(frame_filtered, hsv_img, cv::COLOR_RGB2HSV);
 
-    } else if (encoding.compare("bgr8") == 0 || encoding.compare("bgr16") == 0){
+    } else if (cv_bridge_image.encoding.compare("bgr8") == 0 || cv_bridge_image.encoding.compare("bgr16") == 0){
         cv::cvtColor(frame_filtered, hsv_img, cv::COLOR_BGR2HSV);
         
     } else {
-        ROS_ERROR_STREAM("encoding '"<< encoding << "' not supported"); 
+        ROS_ERROR_STREAM("encoding '"<< cv_bridge_image.encoding << "' not supported"); 
         return false;
     }
     
@@ -283,14 +293,14 @@ bool LaserSpotDetection::detect3(const cv::Mat &frame, double &pixel_x, double &
    }
     
     
-    if (encoding.compare("rgb8") == 0 || encoding.compare("rgb16") == 0) {
+    if (cv_bridge_image.encoding.compare("rgb8") == 0 || cv_bridge_image.encoding.compare("rgb16") == 0) {
         cv::cvtColor(frame_filtered, hsv_img, cv::COLOR_RGB2HSV);
 
-    } else if (encoding.compare("bgr8") == 0 || encoding.compare("bgr16") == 0){
+    } else if (cv_bridge_image.encoding.compare("bgr8") == 0 || cv_bridge_image.encoding.compare("bgr16") == 0){
         cv::cvtColor(frame_filtered, hsv_img, cv::COLOR_BGR2HSV);
         
     } else {
-        ROS_ERROR_STREAM("encoding '"<< encoding << "' not supported"); 
+        ROS_ERROR_STREAM("encoding '"<< cv_bridge_image.encoding << "' not supported"); 
         return false;
     }
     
@@ -344,9 +354,7 @@ bool LaserSpotDetection::detect3(const cv::Mat &frame, double &pixel_x, double &
     } else {
         pixel_x = keypoints.at(0).pt.x;
         pixel_y = keypoints.at(0).pt.y;
-        
-        std::cout << keypoints.at(0).size << std::endl;
-        
+                
     }
     
     if (keypoints.size() > 1) {
@@ -382,14 +390,14 @@ bool LaserSpotDetection::detect0(const cv::Mat &frame, double &pixel_x, double &
     
     cv::Mat hsv_img, mask, hsv_img_thresholded, hsv_img_thresholded_gray, hsv_img_thresholded_last;
 
-    if (encoding.compare("rgb8") == 0 || encoding.compare("rgb16") == 0) {
+    if (cv_bridge_image.encoding.compare("rgb8") == 0 || cv_bridge_image.encoding.compare("rgb16") == 0) {
         cv::cvtColor(frame, hsv_img, cv::COLOR_RGB2HSV);
 
-    } else if (encoding.compare("bgr8") == 0 || encoding.compare("bgr16") == 0){
+    } else if (cv_bridge_image.encoding.compare("bgr8") == 0 || cv_bridge_image.encoding.compare("bgr16") == 0){
         cv::cvtColor(frame, hsv_img, cv::COLOR_BGR2HSV);
         
     } else {
-        ROS_ERROR_STREAM("encoding '"<< encoding << "' not supported"); 
+        ROS_ERROR_STREAM("encoding '"<< cv_bridge_image.encoding << "' not supported"); 
         return false;
     }
     
@@ -459,14 +467,14 @@ bool LaserSpotDetection::detect2(const cv::Mat &frame, double &pixel_x, double &
     bool ret = true;
     
     cv::Mat hsv_img, mask;
-    if (encoding.compare("rgb8") == 0 || encoding.compare("rgb16") == 0) {
+    if (cv_bridge_image.encoding.compare("rgb8") == 0 || cv_bridge_image.encoding.compare("rgb16") == 0) {
         cv::cvtColor(frame, hsv_img, cv::COLOR_RGB2HSV);
 
-    } else if (encoding.compare("bgr8") == 0 || encoding.compare("bgr16") == 0){
+    } else if (cv_bridge_image.encoding.compare("bgr8") == 0 || cv_bridge_image.encoding.compare("bgr16") == 0){
         cv::cvtColor(frame, hsv_img, cv::COLOR_BGR2HSV);
         
     } else {
-        ROS_ERROR_STREAM("encoding '"<< encoding << "' not supported"); 
+        ROS_ERROR_STREAM("encoding '"<< cv_bridge_image.encoding << "' not supported"); 
         return false;
     }
     

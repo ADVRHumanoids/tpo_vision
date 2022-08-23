@@ -29,6 +29,9 @@ Laser3DTracking::Laser3DTracking (ros::NodeHandle* nh) {
     nh->param<std::string>("laser_spot_frame", laser_spot_frame, "laser_spot");
     nh->param<std::string>("camera_frame", camera_frame, "D435_head_camera_color_optical_frame");
     
+    nh->param<double>("detection_confidence_threshold", detection_confidence_threshold, 0.2);
+    nh->param<double>("cloud_detection_max_sec_diff", cloud_detection_max_sec_diff, 1);
+
     std::string keypoint_topic;
     nh->param<std::string>("keypoint_topic", keypoint_topic, "detection_output_keypoint");
     
@@ -69,30 +72,72 @@ int Laser3DTracking::run () {
     //change reference frame
     pcl_ros::transformPointCloud (ref_frame, *cloud, *cloud, tf_buffer);
     
-    if (keypoint_image.confidence <= 0 ){
-    
-        sendTransformFrom2D(keypoint_image.x_pixel, keypoint_image.y_pixel);
-    } else {
-        ROS_WARN_STREAM("Confidence of arrived keypoint detection message is zero!'");
-
-    }
+    sendTransformFrom2D();
 
     return 0;
 }
 
-
-bool Laser3DTracking::sendTransformFrom2D(int pixel_x, int pixel_y) {
+bool Laser3DTracking::sendTransformFrom2D() {
     
-//     std::cout << cam_param << std::endl;
+    if(wait_for_new_detection) {
+        return false;
+    }
     
-//     if (cv_bridge_image.image.empty()) {
-//         std::cout << "image not yet arrived and/or is empty" << std::endl;
-//         return false;
-//     }
+    if (keypoint_image.confidence <= detection_confidence_threshold ){
+    
+        ROS_WARN("Confidence of arrived keypoint detection message is below the threshold (%s < %s)", 
+                 std::to_string(keypoint_image.confidence).c_str(), std::to_string(detection_confidence_threshold).c_str());
+        return false;
+    } 
+    
+    ros::Duration time_diff;
+    //header in pcl cloud is a uint in microsecond, not a ros::Time
+    ros::Time cloud_time;
+    cloud_time.fromNSec(cloud->header.stamp*1000);
+    
+//     std::cout << "aaaaaaaaaaaaaa" << std::endl;
+//     std::cout << " ros: " << cloud_time.toNSec() << std::endl;
+//     std::cout << " pcl: " << cloud->header.stamp * 1000 << std::endl;
+//     std::cout << "aaaaaaaaaaaaaa" << std::endl;
 
+    if (keypoint_image.header.stamp < cloud_time) {
+        
+        time_diff = cloud_time - keypoint_image.header.stamp;
+        
+        if (time_diff.toSec() > cloud_detection_max_sec_diff) {
+            ROS_WARN("keypoint is too old wrt to cloud: (%ss, %ss, diff : %ss > %ss)", 
+                    std::to_string(keypoint_image.header.stamp.toSec()).c_str(), 
+                    std::to_string(cloud_time.toSec()).c_str(),
+                    std::to_string(time_diff.toSec()).c_str(),
+                    std::to_string(cloud_detection_max_sec_diff).c_str()
+                    );    
+            
+            wait_for_new_detection = true;
+            
+            return false;
+        } 
+        
+    } else {
+        
+        time_diff = keypoint_image.header.stamp - cloud_time; 
+        
+        if (time_diff.toSec() > cloud_detection_max_sec_diff) {
+            ROS_WARN("cloud is too old wrt to keypoint (this is strange): (%ss, %ss, diff : %ss > %ss)", 
+                    std::to_string(cloud_time.toSec()).c_str(), 
+                    std::to_string(keypoint_image.header.stamp.toSec()).c_str(),
+                    std::to_string(time_diff.toSec()).c_str(),
+                    std::to_string(cloud_detection_max_sec_diff).c_str()
+                    );    
+            wait_for_new_detection = true;
+            return false;
+        } 
+    }
+    
+    //std::cout << "difffff " << time_diff.toSec() << std::endl;
+    
     ref_T_spot.header.stamp = ros::Time::now();
     
-    auto pointXYZ = cloud->at(pixel_x, pixel_y);
+    auto pointXYZ = cloud->at(keypoint_image.x_pixel, keypoint_image.y_pixel);
     
     ref_T_spot.transform.translation.x = pointXYZ.x;
     ref_T_spot.transform.translation.y = pointXYZ.y;
@@ -113,6 +158,7 @@ void Laser3DTracking::cloudClbk(const PointCloud::ConstPtr& msg)
 void Laser3DTracking::keypointSubClbk(const tpo_msgs::KeypointImageConstPtr& msg)
 {
     keypoint_image = *msg;
+    wait_for_new_detection = false;
 }
 
 

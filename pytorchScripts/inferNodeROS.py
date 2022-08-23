@@ -38,9 +38,9 @@ class getCameraInfo:
     
     def __init__(self, image_info_topic):
         self.sub = rospy.Subscriber(image_info_topic, CameraInfo, self.__callback)
-        print("wating for camerainfo...")
+        rospy.loginfo("waiting for camerainfo...")
         rospy.wait_for_message(image_info_topic, CameraInfo, timeout=None)
-        print("... camerainfo arrived")
+        rospy.loginfo("... camerainfo arrived")
 
     def __callback(self, msg):
         self.cam_info["width"] = msg.width
@@ -53,6 +53,7 @@ class DetectorManager():
     ros_image_input = ros_image_output = None
     cv_image_input = cv_image_output = np.zeros((100,100,3), np.uint8)
     tensor_images = []
+    new_image = False
     
     def __init__(self):
         
@@ -85,9 +86,9 @@ class DetectorManager():
         self.camera_image_transport = rospy.get_param('transport', 'compressed')
         ros_image_input_topic = camera_image_topic + self.camera_image_transport
         
-        pub_out_keypoint_topic = rospy.get_param('pub_out_keypoint_topic', "detection_output_keypoint")
+        pub_out_keypoint_topic = rospy.get_param('pub_out_keypoint_topic', "/detection_output_keypoint")
         self.pub_out_images = rospy.get_param('pub_out_images', True)
-        pub_out_images_topic = rospy.get_param('pub_out_images_topic', "detection_output_img/compressed")
+        pub_out_images_topic = rospy.get_param('pub_out_images_topic', "/detection_output_img")
         
         #camera_info_topic = rospy.get_param('camera_info_topic', '/D435_head_camera/color/camera_info')
         #getCameraInfo(camera_info_topic)
@@ -97,23 +98,23 @@ class DetectorManager():
         if self.camera_image_transport == "compressed":
             self.image_sub = rospy.Subscriber(ros_image_input_topic, ROSCompressedImage,
                                               self.__image_clbk, queue_size = 1)
-            print("wating for camera message...")
+            rospy.loginfo("waiting for camera message...")
             rospy.wait_for_message(ros_image_input_topic, ROSCompressedImage, timeout=None)
-            print("... camera message arrived")
+            rospy.loginfo("... camera message arrived")
             self.ros_image_input = ROSCompressedImage
             
         else:
             self.image_sub = rospy.Subscriber(ros_image_input_topic, ROSImage,
                                               self.__image_clbk, queue_size = 10)
-            print("wating for camera message...")
+            rospy.loginfo("waiting for camera message...")
             rospy.wait_for_message(ros_image_input_topic, ROSImage, timeout=None)
-            print("... camera message arrived")
+            rospy.loginfo("... camera message arrived")
             self.ros_image_input = ROSImage
             
         self.keypoint_pub = rospy.Publisher(pub_out_keypoint_topic, KeypointImage, queue_size=10)
             
         if self.pub_out_images:
-            self.image_pub = rospy.Publisher(pub_out_images_topic, ROSCompressedImage, queue_size=10)
+            self.image_pub = rospy.Publisher(pub_out_images_topic+"/compressed", ROSCompressedImage, queue_size=10)
 
 
     def __image_clbk(self, msg):
@@ -127,7 +128,9 @@ class DetectorManager():
                 self.cv_image_input = self.bridge.imgmsg_to_cv2(msg, desired_encoding="rgb8")
             
         except CvBridgeError as e:
-            print(e)
+            rospy.logerror(e)
+            
+        self.new_image = True
     
     
     def __process_image(self):
@@ -143,6 +146,10 @@ class DetectorManager():
        
     def infer(self):
         
+        if not self.new_image:
+            rospy.logwarn("no new image")
+            return False
+        
         self.__process_image()
         
         with torch.no_grad():
@@ -152,35 +159,44 @@ class DetectorManager():
     
             #images[0] = images[0].detach().cpu()
         
-
-        if (max(out['scores']) > self.threshold):
-        
-            #IDK if the best box is always the first one, so lets the argmax
-            best_index = torch.argmax(out['scores'])
-            
-            #show_image_with_boxes(img, out['boxes'][best_index], out['labels'][best_index])
-            
-            self.__pubKeypoint(out['boxes'][best_index], out['scores'][best_index], out['labels'][best_index])
-             
-            if self.pub_out_images:
-                self.__pubImageWithRectangle(out['boxes'][best_index], out['labels'][best_index])
-            
-            return True
-        else :
-            print(f"no detection found under the threshold {self.threshold}")
+        if (len(out['scores']) == 0):
+            rospy.logwarn("no detection found at all (len is 0)")
+            self.__pubImageWithRectangle(box=None, label=None)
             return False
+        
+        if (max(out['scores']) < self.threshold):
+            rospy.logwarn("no detection found under the threshold %s", self.threshold)
+            self.__pubImageWithRectangle(box=None, label=None)
+            return False
+        
+        
+        #IDK if the best box is always the first one, so lets the argmax
+        best_index = torch.argmax(out['scores'])
+        
+        #show_image_with_boxes(img, out['boxes'][best_index], out['labels'][best_index])
+        
+        self.__pubKeypoint(out['boxes'][best_index], out['scores'][best_index], out['labels'][best_index])
+         
+        if self.pub_out_images:
+            self.__pubImageWithRectangle(out['boxes'][best_index], out['labels'][best_index])
+        
+        self.new_image = False
+        
+        return True
 
-    def __pubImageWithRectangle(self, box, label=None):
+
+    def __pubImageWithRectangle(self, box=None, label=None):
         
         #first convert back to unit8
         self.cv_image_output = torchvision.transforms.functional.convert_image_dtype(
             self.tensor_images[0].cpu(), torch.uint8).numpy().transpose([1,2,0])
         self.cv_image_output = cv2.cvtColor(self.cv_image_output, cv2.COLOR_BGR2RGB)
         
-        cv2.rectangle(self.cv_image_output, 
-                      (round(box[0].item()), round(box[1].item())),
-                      (round(box[2].item()), round(box[3].item())),
-                      (255,0,0), 2)
+        if not box == None:
+            cv2.rectangle(self.cv_image_output, 
+                          (round(box[0].item()), round(box[1].item())),
+                          (round(box[2].item()), round(box[3].item())),
+                          (255,0,0), 2)
         
         if label:
             cv2.putText(self.cv_image_output, str(label.item()), (round(box[0].item()), round(box[3].item()+10)), 
@@ -198,16 +214,19 @@ class DetectorManager():
         self.image_pub.publish(self.ros_image_output)
 
             
+    """
+    box is tensor and may be still float, we round befor filling the msg
+    """        
     def __pubKeypoint(self, box, score, label):
         
         msg = KeypointImage()
-        msg.header.frame_id = self.ros_image_input.frame_id
-        msg.header.seq = self.ros_image_input.seq
+        msg.header.frame_id = self.ros_image_input.header.frame_id
+        msg.header.seq = self.ros_image_input.header.seq
         msg.header.stamp = rospy.Time.now()
         
         #box from model has format: [x_0, y_0, x_1, y_1]
-        msg.x_pixel = box[0] + (box[2] - box[0])/2
-        msg.y_pixel = box[1] + (box[3] - box[1])/2
+        msg.x_pixel = round(box[0].item() + (box[2].item() - box[0].item())/2)
+        msg.y_pixel = round(box[1].item() + (box[3].item()  - box[1].item())/2)
         msg.label = label
         msg.confidence = score
         
@@ -222,13 +241,15 @@ if __name__=="__main__":
     dm = DetectorManager()
 
     
-    dm.infer()
+    rate = rospy.Rate(1) # ROS Rate
     
-    #rate = rospy.Rate(10) # ROS Rate
-   # while not rospy.is_shutdown():
-     #   dm.infer()
-
-     #   rate.sleep()
+    
+    while not rospy.is_shutdown():
+        tic = rospy.Time().now()
+        dm.infer()
+        toc = rospy.Time().now()
+        rospy.logwarn ('Inference time: %s s', (toc-tic).to_sec())
+        rate.sleep()
     
 
     
