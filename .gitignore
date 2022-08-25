@@ -3,3 +3,6 @@
 *.kate-swp
 *.pt
 pytorchScripts/data/*
+opencvScripts/*.caffemodel
+opencvScripts/*.prototxt
+opencvScripts/goturn-files-master/*
