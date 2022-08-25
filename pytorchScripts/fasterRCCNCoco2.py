@@ -67,30 +67,112 @@ def get_model_mobilenet(num_classes):
     return model
 
 """
-example taken from https://medium.com/fullstackai/how-to-train-an-object-detector-with-your-own-coco-dataset-in-pytorch-319e7090da5
+example taken from 
+https://medium.com/fullstackai/how-to-train-an-object-detector-with-your-own-coco-dataset-in-pytorch-319e7090da5
+https://pytorch.org/vision/stable/models.html#object-detection
 """
-def get_model_fasterrcnn(num_classes):
+def get_model_fasterrcnn(num_classes, version=1):
+    
     # load an instance segmentation model pre-trained pre-trained on COCO
-    model = torchvision.models.detection.fasterrcnn_resnet50_fpn(weights="DEFAULT")
+    # Default is COCO, and it seems no other weights are available now
+    
+    if version == 1:
+        weights = torchvision.models.detection.FasterRCNN_ResNet50_FPN_Weights.DEFAULT
+        model = torchvision.models.detection.fasterrcnn_resnet50_fpn(weights)
+    elif version == 2:
+        weights = torchvision.models.detection.FasterRCNN_ResNet50_FPN_V2_Weights.DEFAULT
+        model = torchvision.models.detection.fasterrcnn_resnet50_fpn_v2(weights)
+        
+    # get number of input features for the classifier
+    in_features = model.roi_heads.box_predictor.cls_score.in_features
+    
+    # replace the pre-trained head with a new one
+    model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
+
+    return model
+
+"""
+this is for mobile uses?
+"""
+def get_model_fasterrcnn_mobilenet(num_classes, version='high'):
+    
+    # load an instance segmentation model pre-trained pre-trained on COCO
+    # Default is COCO, and it seems no other weights are available now
+    
+    if version == 'high':
+        weights = torchvision.models.detection.FasterRCNN_MobileNet_V3_Large_FPN_Weights.DEFAULT
+        model = torchvision.models.detection.fasterrcnn_mobilenet_v3_large_fpn(weights)
+        
+    elif version == 'low':
+        weights = torchvision.models.detection.FasterRCNN_MobileNet_V3_Large_320_FPN_Weights.DEFAULT
+        model = torchvision.models.detection.fasterrcnn_mobilenet_v3_large_320_fpn(weights)
+        
+    # get number of input features for the classifier
+    in_features = model.roi_heads.box_predictor.cls_score.in_features
+    
+    # replace the pre-trained head with a new one
+    model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
+
+    return model
+
+def get_model_fcos(num_classes):
+
+    weights = torchvision.models.detection.FCOS_ResNet50_FPN_Weights.DEFAULT
+    model = torchvision.models.detection.fcos_resnet50_fpn(weights)
+    
     # get number of input features for the classifier
     in_features = model.roi_heads.box_predictor.cls_score.in_features
     # replace the pre-trained head with a new one
     model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
 
-    return model
+    return model 
+
+def get_model_retinanet(num_classes, version=1):
+
+    if version == 1:
+        weights = torchvision.models.detection.RetinaNet_ResNet50_FPN_Weights.DEFAULT
+        model = torchvision.models.detection.retinanet_resnet50_fpn(weights)        
+    elif version == 2:
+        weights = torchvision.models.detection.RetinaNet_ResNet50_FPN_V2_Weights.DEFAULT
+        model = torchvision.models.detection.retinanet_resnet50_fpn_v2(weights)        
+    
+    # get number of input features for the classifier
+    in_features = model.roi_heads.box_predictor.cls_score.in_features
+    # replace the pre-trained head with a new one
+    model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
+
+    return model  
+
+def get_model_ssd(num_classes):
+
+    weights = torchvision.models.detection.SSD300_VGG16_Weights.DEFAULT
+    model = torchvision.models.detection.ssd300_vgg16(weights)
+    
+    # get number of input features for the classifier
+    in_features = model.roi_heads.box_predictor.cls_score.in_features
+    # replace the pre-trained head with a new one
+    model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
+
+    return model 
+
+def get_model_ssdlite(num_classes):
+
+    weights = torchvision.models.detection.SSDLite320_MobileNet_V3_Large_Weights.DEFAULT
+    model = torchvision.models.detection.ssdlite320_mobilenet_v3_large(weights)
+    
+    # get number of input features for the classifier
+    in_features = model.roi_heads.box_predictor.cls_score.in_features
+    # replace the pre-trained head with a new one
+    model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
+
+    return model 
+
 
 """
 from https://pytorch.org/vision/0.13/models.html#object-detection-instance-segmentation-and-person-keypoint-detection
+TODO
 """
-def get_model_fasterrcnn(num_classes):
-    # load an instance segmentation model pre-trained pre-trained on COCO
-    model = torchvision.models.detection.fasterrcnn_resnet50_fpn(weights="DEFAULT")
-    # get number of input features for the classifier
-    in_features = model.roi_heads.box_predictor.cls_score.in_features
-    # replace the pre-trained head with a new one
-    model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
 
-    return model
 
 def get_transform(train=None):
     custom_transforms = []
@@ -161,8 +243,36 @@ if __name__ == '__main__':
     #    annotations = [{k: v.to(device) for k, v in t.items()} for t in annotations]
     #    print(annotations)
        
-
-    model = get_model_fasterrcnn(num_classes)
+    model_types = ['faster_rcnn_v1', 'faster_rcnn_v2', 'fasterrcnn_mobilenet_high', 'fasterrcnn_mobilenet_low',
+                   'fcos', 'retinanet_v1', 'retinanet_v2', 'ssd', 'ssd_lite']
+    model_type = model_types[0]
+    
+    if model_type == 'faster_rcnn_v1':
+        model = get_model_fasterrcnn(num_classes, version=1)
+        
+    elif model_type == 'faster_rcnn_v2':
+        model = get_model_fasterrcnn(num_classes, version=2)
+        
+    elif model_type == 'fasterrcnn_mobilenet_high':
+        model = get_model_fasterrcnn(num_classes, version='high')
+        
+    elif model_type == 'fasterrcnn_mobilenet_low':
+        model = get_model_fasterrcnn(num_classes, version='low')
+        
+    elif model_type == 'fcos':
+        model = get_model_fasterrcnn(num_classes)
+        
+    elif model_type == 'retinanet_v1':
+        model = get_model_fasterrcnn(num_classes, version=1)
+        
+    elif model_type == 'retinanet_v2':
+        model = get_model_fasterrcnn(num_classes, version=2)
+        
+    elif model_type == 'ssd':
+        model = get_model_fasterrcnn(num_classes)
+        
+    elif model_type == 'ssd_lite':
+        model = get_model_fasterrcnn(num_classes)
     
     # move model to the right device
     model.to(device)
@@ -188,4 +298,4 @@ if __name__ == '__main__':
         
     
     
-    torch.save(model, "model2.pt")
+    torch.save(model, model_type+"_model.pt")
