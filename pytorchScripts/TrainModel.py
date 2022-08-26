@@ -7,7 +7,6 @@ Created on Tue Aug 16 10:46:19 2022
 
 example taken from https://medium.com/fullstackai/how-to-train-an-object-detector-with-your-own-coco-dataset-in-pytorch-319e7090da5
 """
-import os
 import torch
 import torch.utils.data
 import torchvision
@@ -21,11 +20,8 @@ from torchvision.models.detection.rpn import AnchorGenerator
 sys.path.insert(1, 'detection')
 from engine import train_one_epoch, evaluate
 import utils
-import transforms
 
 from CustomCocoDataset import CustomCocoDataset
-from testingNet import *
-from PennFudanDataset import *
 
 """
 example taken from https://pytorch.org/tutorials/intermediate/torchvision_tutorial.html
@@ -78,10 +74,10 @@ def get_model_fasterrcnn(num_classes, version=1):
     
     if version == 1:
         weights = torchvision.models.detection.FasterRCNN_ResNet50_FPN_Weights.DEFAULT
-        model = torchvision.models.detection.fasterrcnn_resnet50_fpn(weights)
+        model = torchvision.models.detection.fasterrcnn_resnet50_fpn(weigths=weights)
     elif version == 2:
         weights = torchvision.models.detection.FasterRCNN_ResNet50_FPN_V2_Weights.DEFAULT
-        model = torchvision.models.detection.fasterrcnn_resnet50_fpn_v2(weights)
+        model = torchvision.models.detection.fasterrcnn_resnet50_fpn_v2(weigths=weights)
         
     # get number of input features for the classifier
     in_features = model.roi_heads.box_predictor.cls_score.in_features
@@ -101,11 +97,11 @@ def get_model_fasterrcnn_mobilenet(num_classes, version='high'):
     
     if version == 'high':
         weights = torchvision.models.detection.FasterRCNN_MobileNet_V3_Large_FPN_Weights.DEFAULT
-        model = torchvision.models.detection.fasterrcnn_mobilenet_v3_large_fpn(weights)
+        model = torchvision.models.detection.fasterrcnn_mobilenet_v3_large_fpn(weigths=weights)
         
     elif version == 'low':
         weights = torchvision.models.detection.FasterRCNN_MobileNet_V3_Large_320_FPN_Weights.DEFAULT
-        model = torchvision.models.detection.fasterrcnn_mobilenet_v3_large_320_fpn(weights)
+        model = torchvision.models.detection.fasterrcnn_mobilenet_v3_large_320_fpn(weigths=weights)
         
     # get number of input features for the classifier
     in_features = model.roi_heads.box_predictor.cls_score.in_features
@@ -118,12 +114,9 @@ def get_model_fasterrcnn_mobilenet(num_classes, version='high'):
 def get_model_fcos(num_classes):
 
     weights = torchvision.models.detection.FCOS_ResNet50_FPN_Weights.DEFAULT
-    model = torchvision.models.detection.fcos_resnet50_fpn(weights)
+    model = torchvision.models.detection.fcos_resnet50_fpn(weigths=weights)
     
-    # get number of input features for the classifier
-    in_features = model.roi_heads.box_predictor.cls_score.in_features
-    # replace the pre-trained head with a new one
-    model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
+    # Fcos has not roi_heads... so it is ok like this or we need other stuff?
 
     return model 
 
@@ -131,22 +124,21 @@ def get_model_retinanet(num_classes, version=1):
 
     if version == 1:
         weights = torchvision.models.detection.RetinaNet_ResNet50_FPN_Weights.DEFAULT
-        model = torchvision.models.detection.retinanet_resnet50_fpn(weights)        
+        model = torchvision.models.detection.retinanet_resnet50_fpn(weigths=weights)        
     elif version == 2:
         weights = torchvision.models.detection.RetinaNet_ResNet50_FPN_V2_Weights.DEFAULT
-        model = torchvision.models.detection.retinanet_resnet50_fpn_v2(weights)        
+        model = torchvision.models.detection.retinanet_resnet50_fpn_v2(weigths=weights)        
     
-    # get number of input features for the classifier
-    in_features = model.roi_heads.box_predictor.cls_score.in_features
-    # replace the pre-trained head with a new one
-    model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
+    # retinanet has not ros_heads, so to replace the last layer(s) I found:
+    # https://datascience.stackexchange.com/questions/92724/fine-tune-the-retinanet-model-in-pytorch    
+    # but it uses attributes that are not part of the object. Who knows
 
     return model  
 
 def get_model_ssd(num_classes):
 
     weights = torchvision.models.detection.SSD300_VGG16_Weights.DEFAULT
-    model = torchvision.models.detection.ssd300_vgg16(weights)
+    model = torchvision.models.detection.ssd300_vgg16(weigths=weights)
     
     # get number of input features for the classifier
     in_features = model.roi_heads.box_predictor.cls_score.in_features
@@ -158,7 +150,7 @@ def get_model_ssd(num_classes):
 def get_model_ssdlite(num_classes):
 
     weights = torchvision.models.detection.SSDLite320_MobileNet_V3_Large_Weights.DEFAULT
-    model = torchvision.models.detection.ssdlite320_mobilenet_v3_large(weights)
+    model = torchvision.models.detection.ssdlite320_mobilenet_v3_large(weigths=weights)
     
     # get number of input features for the classifier
     in_features = model.roi_heads.box_predictor.cls_score.in_features
@@ -199,8 +191,8 @@ if __name__ == '__main__':
     num_classes = 2
     
     # path to your own data and coco file
-    data_dir = 'data2/images'
-    data_dir_annotations = 'data2/coco/annotations/instances_default.json'
+    data_dir = 'data/laser_v3/images'
+    data_dir_annotations = 'data/laser_v3/annotations/instances_default.json'
 
     # create own Dataset
     dataset = CustomCocoDataset(root=data_dir,
@@ -216,7 +208,7 @@ if __name__ == '__main__':
     #dataset_test = PennFudanDataset('PennFudanPed', get_transform(train=False))
     
     # split the dataset in train and test set
-    test_percentage = 0.18 # percentage over the total images which is used for testing
+    test_percentage = 0.20 # percentage over the total images which is used for testing
     
     indices = torch.randperm(len(dataset)).tolist()
     percent = math.ceil(len(indices) * test_percentage)
@@ -245,7 +237,7 @@ if __name__ == '__main__':
        
     model_types = ['faster_rcnn_v1', 'faster_rcnn_v2', 'fasterrcnn_mobilenet_high', 'fasterrcnn_mobilenet_low',
                    'fcos', 'retinanet_v1', 'retinanet_v2', 'ssd', 'ssd_lite']
-    model_type = model_types[0]
+    model_type = model_types[7]
     
     if model_type == 'faster_rcnn_v1':
         model = get_model_fasterrcnn(num_classes, version=1)
@@ -254,25 +246,25 @@ if __name__ == '__main__':
         model = get_model_fasterrcnn(num_classes, version=2)
         
     elif model_type == 'fasterrcnn_mobilenet_high':
-        model = get_model_fasterrcnn(num_classes, version='high')
+        model = get_model_fasterrcnn_mobilenet(num_classes, version='high')
         
     elif model_type == 'fasterrcnn_mobilenet_low':
-        model = get_model_fasterrcnn(num_classes, version='low')
+        model = get_model_fasterrcnn_mobilenet(num_classes, version='low')
         
-    elif model_type == 'fcos':
-        model = get_model_fasterrcnn(num_classes)
+    #elif model_type == 'fcos':
+        #model = get_model_fcos(num_classes)
         
-    elif model_type == 'retinanet_v1':
-        model = get_model_fasterrcnn(num_classes, version=1)
+    #elif model_type == 'retinanet_v1':
+       # model = get_model_retinanet(num_classes, version=1)
         
-    elif model_type == 'retinanet_v2':
-        model = get_model_fasterrcnn(num_classes, version=2)
+    #elif model_type == 'retinanet_v2':
+       # model = get_model_retinanet(num_classes, version=2)
         
-    elif model_type == 'ssd':
-        model = get_model_fasterrcnn(num_classes)
+    #elif model_type == 'ssd':
+    #    model = get_model_ssd(num_classes)
         
-    elif model_type == 'ssd_lite':
-        model = get_model_fasterrcnn(num_classes)
+    #elif model_type == 'ssd_lite':
+    #    model = get_model_ssdlite(num_classes)
     
     # move model to the right device
     model.to(device)
