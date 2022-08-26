@@ -7,7 +7,6 @@ Created on Tue Aug 16 15:17:31 2022
 """
 import os
 import torch
-import torchvision
 from pycocotools.coco import COCO
 from PIL import Image
 
@@ -39,23 +38,37 @@ class CustomCocoDataset(torch.utils.data.Dataset):
         # In coco format, bbox = [xmin, ymin, width, height]
         # In pytorch, the input should be [xmin, ymin, xmax, ymax]
         boxes = []
-        for i in range(num_objs):
-            xmin = coco_annotation[i]['bbox'][0]
-            ymin = coco_annotation[i]['bbox'][1]
-            xmax = xmin + coco_annotation[i]['bbox'][2]
-            ymax = ymin + coco_annotation[i]['bbox'][3]
-            boxes.append([xmin, ymin, xmax, ymax])
-        boxes = torch.as_tensor(boxes, dtype=torch.float32)
+        
+        # if no label, we must anyway fill the object
+        if num_objs == 0:
+            boxes = torch.zeros((0,4), dtype=torch.float32)
+        
+        else:
+            for i in range(num_objs):
+                xmin = coco_annotation[i]['bbox'][0]
+                ymin = coco_annotation[i]['bbox'][1]
+                xmax = xmin + coco_annotation[i]['bbox'][2]
+                ymax = ymin + coco_annotation[i]['bbox'][3]
+                boxes.append([xmin, ymin, xmax, ymax])
+            boxes = torch.as_tensor(boxes, dtype=torch.float32)
+            
         # Labels (In my case, I only one class: target class or background)
         labels = torch.ones((num_objs,), dtype=torch.int64)
+        
         # Tensorise img_id
         img_id = torch.tensor([img_id])
+        
         # Size of bbox (Rectangular)
         areas = []
-        for i in range(num_objs):
-            areas.append(coco_annotation[i]['area'])
-        areas = torch.as_tensor(areas, dtype=torch.float32)
-        # Iscrowd
+        if num_objs == 0:
+            areas = torch.zeros((0,1), dtype=torch.float32)
+            
+        else:
+            for i in range(num_objs):
+                areas.append(coco_annotation[i]['area'])
+            areas = torch.as_tensor(areas, dtype=torch.float32)
+            
+        # suppose all instances are not crowd
         iscrowd = torch.zeros((num_objs,), dtype=torch.int64)
 
         # Annotation is in dictionary format
