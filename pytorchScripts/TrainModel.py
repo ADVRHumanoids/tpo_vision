@@ -195,7 +195,12 @@ def get_transform(train=None):
         #custom_transforms.append(torchvision.transforms.RandomEqualize())
     return torchvision.transforms.Compose(custom_transforms)
 
-if __name__ == '__main__':
+#def run(batch_size=1, num_epochs=1, model_type = 'fasterrcnn_mobilenet_low', test_percentage=0.20) :
+if __name__ == "__main__":
+    batch_size=1
+    num_epochs=10
+    model_type = 'fasterrcnn_mobilenet_low'
+    test_percentage=0.20
     
     torch.manual_seed(14)
     
@@ -206,15 +211,18 @@ if __name__ == '__main__':
     num_classes = 2
     
     # path to your own data and coco file
-    data_dir = 'data/laser_v3/images'
-    data_dir_annotations = 'data/laser_v3/annotations/instances_default.json'
+   #data_dir = 'data/laser_v3/'
+    data_dir = 'data/data1/coco/'
+    
+    data_dir_images = data_dir + 'images'
+    data_dir_annotations = data_dir + 'annotations/instances_default.json'
 
     # create own Dataset
-    dataset = CustomCocoDataset(root=data_dir,
+    dataset = CustomCocoDataset(root=data_dir_images,
                               annotation=data_dir_annotations,
                               transforms=get_transform(True)
                               )
-    dataset_test = CustomCocoDataset(root=data_dir,
+    dataset_test = CustomCocoDataset(root=data_dir_images,
                               annotation=data_dir_annotations,
                               transforms=get_transform(False)
                               )
@@ -232,13 +240,13 @@ if __name__ == '__main__':
     
     # own DataLoader
     data_loader = torch.utils.data.DataLoader(dataset,
-                                              batch_size=8,
+                                              batch_size=batch_size,
                                               shuffle=True,
                                               num_workers=4,
                                               collate_fn=utils.collate_fn)
     
     data_loader_test = torch.utils.data.DataLoader(dataset_test, 
-                                                   batch_size=8, 
+                                                   batch_size=batch_size, 
                                                    shuffle=False, 
                                                    num_workers=4,
                                                    collate_fn=utils.collate_fn)
@@ -250,9 +258,9 @@ if __name__ == '__main__':
     #    annotations = [{k: v.to(device) for k, v in t.items()} for t in annotations]
     #    print(annotations)
        
-    model_types = ['faster_rcnn_v1', 'faster_rcnn_v2', 'fasterrcnn_mobilenet_high', 'fasterrcnn_mobilenet_low',
-                   'fcos', 'retinanet_v1', 'retinanet_v2', 'ssd', 'ssd_lite']
-    model_type = model_types[0]
+   # model_types = ['faster_rcnn_v1', 'faster_rcnn_v2', 'fasterrcnn_mobilenet_high', 'fasterrcnn_mobilenet_low',
+    #               'fcos', 'retinanet_v1', 'retinanet_v2', 'ssd', 'ssd_lite']
+   # model_type = model_types[0]
     
     model = None
     
@@ -283,6 +291,10 @@ if __name__ == '__main__':
     #elif model_type == 'ssd_lite':
     #    model = get_model_ssdlite(num_classes)
     
+    else:
+        print(f'model {model_type} not recognized')
+        #return
+    
     # move model to the right device
     model.to(device)
     
@@ -292,13 +304,10 @@ if __name__ == '__main__':
     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer,
                                                    step_size=3,
                                                    gamma=0.1)
-    
-    len_dataloader = len(data_loader)
-    
-    num_epochs = 10
-    
+        
     ############# PLOT UTILS ###############
-    loss_vals=  []
+    loss_vals = []
+    loss_vals_eval = []
     ##################################
     
     for epoch in range(num_epochs):
@@ -307,11 +316,18 @@ if __name__ == '__main__':
         # update the learning rate
         lr_scheduler.step()
         # evaluate on the test dataset
-        coco_evaluator = evaluate(model, data_loader_test, device=device)
+        coco_evaluator, metric_logger_eval = evaluate(model, data_loader_test, device=device)
         
         ### Plotting?
         loss_vals.append(metric_logger.loss.value)
+        loss_vals_eval.append(metric_logger_eval.loss.value)
 
-    torch.save(model, model_type+"_model.pt")
+    torch.save(model, model_type+ "_e"+str(num_epochs) + "_b"+str(batch_size) + "_t" + str(math.floor(test_percentage*100)) +".pt")
 
-    plt.plot(np.linspace(1, num_epochs, num_epochs), loss_vals)
+    plt.plot(np.linspace(1, num_epochs, num_epochs), loss_vals, label='train')
+    plt.plot(np.linspace(1, num_epochs, num_epochs), loss_vals_eval, label='validation')
+    plt.legend()
+    plt.xlabel('epochs')
+    plt.ylabel('loss')
+    plt.xticks(np.linspace(1, num_epochs, num_epochs))
+    plt.savefig(model_type+ "_e"+str(num_epochs) + "_b"+str(batch_size) + "_t" + str(math.floor(test_percentage*100)) +".png", bbox_inches='tight')

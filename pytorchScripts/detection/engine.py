@@ -74,12 +74,35 @@ def _get_iou_types(model):
 
 @torch.inference_mode()
 def evaluate(model, data_loader, device):
+    
+    metric_logger = utils.MetricLogger(delimiter="  ")
+    
+    ########## ADDED to have the loss
+    # NOTE: as soon model.eval() is called, model mode changes and the model(images, targets)
+    # returns the boxes instead of the loss. We now want the loss, so we do this stuff before
+    # calling eval().
+    ### BTW I am not sure this is the correct way
+    for images, targets in data_loader:
+        images = [image.to(device) for image in images]
+        targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+        with torch.no_grad():
+            
+            loss_dict = model(images, targets)
+            
+
+        # reduce losses over all GPUs for logging purposes
+        loss_dict_reduced = utils.reduce_dict(loss_dict)
+        losses_reduced = sum(loss for loss in loss_dict_reduced.values())
+        
+        metric_logger.update(loss=losses_reduced, **loss_dict_reduced)
+    
+    ########################################
+    
     n_threads = torch.get_num_threads()
     # FIXME remove this and make paste_masks_in_image run on the GPU
     torch.set_num_threads(1)
     cpu_device = torch.device("cpu")
     model.eval()
-    metric_logger = utils.MetricLogger(delimiter="  ")
     header = "Test:"
 
     coco = get_coco_api_from_dataset(data_loader.dataset)
@@ -112,4 +135,4 @@ def evaluate(model, data_loader, device):
     coco_evaluator.accumulate()
     coco_evaluator.summarize()
     torch.set_num_threads(n_threads)
-    return coco_evaluator
+    return coco_evaluator, metric_logger
