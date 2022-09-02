@@ -23,6 +23,21 @@ import utils
 
 from CustomCocoDataset import CustomCocoDataset
 
+import numpy as np
+import matplotlib.pyplot as plt
+
+def draw_curve(current_epoch):
+    x_epoch.append(current_epoch)
+    ax0.plot(x_epoch, y_loss['train'], 'bo-', label='train')
+    ax0.plot(x_epoch, y_loss['val'], 'ro-', label='val')
+    ax1.plot(x_epoch, y_err['train'], 'bo-', label='train')
+    ax1.plot(x_epoch, y_err['val'], 'ro-', label='val')
+    if current_epoch == 0:
+        ax0.legend()
+        ax1.legend()
+    fig.savefig(os.path.join('./lossGraphs', 'train.jpg'))
+
+
 """
 example taken from https://pytorch.org/tutorials/intermediate/torchvision_tutorial.html
 """
@@ -217,13 +232,13 @@ if __name__ == '__main__':
     
     # own DataLoader
     data_loader = torch.utils.data.DataLoader(dataset,
-                                              batch_size=1,
+                                              batch_size=8,
                                               shuffle=True,
                                               num_workers=4,
                                               collate_fn=utils.collate_fn)
     
     data_loader_test = torch.utils.data.DataLoader(dataset_test, 
-                                                   batch_size=1, 
+                                                   batch_size=8, 
                                                    shuffle=False, 
                                                    num_workers=4,
                                                    collate_fn=utils.collate_fn)
@@ -237,7 +252,9 @@ if __name__ == '__main__':
        
     model_types = ['faster_rcnn_v1', 'faster_rcnn_v2', 'fasterrcnn_mobilenet_high', 'fasterrcnn_mobilenet_low',
                    'fcos', 'retinanet_v1', 'retinanet_v2', 'ssd', 'ssd_lite']
-    model_type = model_types[7]
+    model_type = model_types[0]
+    
+    model = None
     
     if model_type == 'faster_rcnn_v1':
         model = get_model_fasterrcnn(num_classes, version=1)
@@ -278,16 +295,23 @@ if __name__ == '__main__':
     
     len_dataloader = len(data_loader)
     
-    num_epochs = 5
+    num_epochs = 10
+    
+    ############# PLOT UTILS ###############
+    loss_vals=  []
+    ##################################
     
     for epoch in range(num_epochs):
         # train for one epoch, printing every 10 iterations
-        train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq=10)
+        metric_logger = train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq=10)
         # update the learning rate
         lr_scheduler.step()
         # evaluate on the test dataset
-        evaluate(model, data_loader_test, device=device)
+        coco_evaluator = evaluate(model, data_loader_test, device=device)
         
-    
-    
+        ### Plotting?
+        loss_vals.append(metric_logger.loss.value)
+
     torch.save(model, model_type+"_model.pt")
+
+    plt.plot(np.linspace(1, num_epochs, num_epochs), loss_vals)
