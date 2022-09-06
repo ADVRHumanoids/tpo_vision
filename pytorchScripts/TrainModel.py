@@ -195,15 +195,15 @@ def get_transform(train=None):
         #custom_transforms.append(torchvision.transforms.RandomEqualize())
     return torchvision.transforms.Compose(custom_transforms)
 
-#def run(batch_size=1, num_epochs=1, model_type = 'fasterrcnn_mobilenet_low', test_percentage=0.20) :
-if __name__ == "__main__":
-    batch_size=1
-    num_epochs=10
-    model_type = 'fasterrcnn_mobilenet_low'
-    test_percentage=0.20
+def run(batch_size=1, num_epochs=1, model_type = 'fasterrcnn_mobilenet_low', test_percentage=0.20) :
+#if __name__ == "__main__":
+#    batch_size=1
+#    num_epochs=10
+#    model_type = 'fasterrcnn_mobilenet_low'
+#    test_percentage=0.20
     
     torch.manual_seed(14)
-    
+    plt
     # select device (whether GPU or CPU)
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
     
@@ -211,8 +211,8 @@ if __name__ == "__main__":
     num_classes = 2
     
     # path to your own data and coco file
-   #data_dir = 'data/laser_v3/'
-    data_dir = 'data/data1/coco/'
+    data_dir = 'data/laser_v3/'
+    #data_dir = 'data/data1/coco/'
     
     data_dir_images = data_dir + 'images'
     data_dir_annotations = data_dir + 'annotations/instances_default.json'
@@ -289,7 +289,7 @@ if __name__ == "__main__":
     #    model = get_model_ssd(num_classes)
         
     #elif model_type == 'ssd_lite':
-    #    model = get_model_ssdlite(num_classes)
+    #    model = get_model_ssdlite(num_classes)horizon
     
     else:
         print(f'model {model_type} not recognized')
