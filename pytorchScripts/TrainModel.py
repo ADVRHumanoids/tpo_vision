@@ -26,16 +26,9 @@ from CustomCocoDataset import CustomCocoDataset
 import numpy as np
 import matplotlib.pyplot as plt
 
-def draw_curve(current_epoch):
-    x_epoch.append(current_epoch)
-    ax0.plot(x_epoch, y_loss['train'], 'bo-', label='train')
-    ax0.plot(x_epoch, y_loss['val'], 'ro-', label='val')
-    ax1.plot(x_epoch, y_err['train'], 'bo-', label='train')
-    ax1.plot(x_epoch, y_err['val'], 'ro-', label='val')
-    if current_epoch == 0:
-        ax0.legend()
-        ax1.legend()
-    fig.savefig(os.path.join('./lossGraphs', 'train.jpg'))
+import albumentations as A
+from albumentations.pytorch.transforms import ToTensorV2
+from TestModel import test
 
 
 """
@@ -181,7 +174,7 @@ TODO
 """
 
 
-def get_transform(train=None):
+def get_transform(train=False):
     custom_transforms = []
     custom_transforms.append(torchvision.transforms.ToTensor())
     if train:
@@ -195,15 +188,22 @@ def get_transform(train=None):
         #custom_transforms.append(torchvision.transforms.RandomEqualize())
     return torchvision.transforms.Compose(custom_transforms)
 
-def run(batch_size=1, num_epochs=1, model_type = 'fasterrcnn_mobilenet_low', test_percentage=0.20) :
+def get_test_transform():
+    return A.Compose([
+        # A.Resize(512, 512),
+        ToTensorV2(p=1.0)
+    ])
+
+
+def run(batch_size=1, num_epochs=1, model_type = 'fasterrcnn_mobilenet_low', val_percentage=0.20, test_percentage=0.10) :
 #if __name__ == "__main__":
 #    batch_size=1
 #    num_epochs=10
 #    model_type = 'fasterrcnn_mobilenet_low'
-#    test_percentage=0.20
+#    val_percentage=0.20
+#    test_percentage=0.10
     
-    torch.manual_seed(14)
-    plt
+    #torch.manual_seed(10)
     # select device (whether GPU or CPU)
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
     
@@ -222,21 +222,27 @@ def run(batch_size=1, num_epochs=1, model_type = 'fasterrcnn_mobilenet_low', tes
                               annotation=data_dir_annotations,
                               transforms=get_transform(True)
                               )
-    dataset_test = CustomCocoDataset(root=data_dir_images,
+    dataset_val = CustomCocoDataset(root=data_dir_images,
                               annotation=data_dir_annotations,
                               transforms=get_transform(False)
                               )
+    dataset_test = CustomCocoDataset(root=data_dir_images,
+                          annotation=data_dir_annotations,
+                          transforms=get_test_transform()
+                          )
     
-    #dataset = PennFudanDataset('PennFudanPed', get_transform(train=True))
-    #dataset_test = PennFudanDataset('PennFudanPed', get_transform(train=False))
+    # split the dataset in train val and test set
     
-    # split the dataset in train and test set
-    test_percentage = 0.20 # percentage over the total images which is used for testing
+    train_percentage = 1.0 - val_percentage - test_percentage
     
     indices = torch.randperm(len(dataset)).tolist()
-    percent = math.ceil(len(indices) * test_percentage)
-    dataset = torch.utils.data.Subset(dataset, indices[:-percent])
-    dataset_test = torch.utils.data.Subset(dataset_test, indices[-percent:])
+    
+    index_train = math.ceil(len(indices) * train_percentage)
+    index_val = math.ceil(len(indices) * val_percentage)
+    
+    dataset = torch.utils.data.Subset(dataset, indices[0:index_train])
+    dataset_val = torch.utils.data.Subset(dataset_val, indices[index_train:index_train+index_val])
+    dataset_test = torch.utils.data.Subset(dataset_test, indices[index_train+index_val:])
     
     # own DataLoader
     data_loader = torch.utils.data.DataLoader(dataset,
@@ -245,10 +251,17 @@ def run(batch_size=1, num_epochs=1, model_type = 'fasterrcnn_mobilenet_low', tes
                                               num_workers=4,
                                               collate_fn=utils.collate_fn)
     
+    data_loader_val = torch.utils.data.DataLoader(dataset_val, 
+                                                   batch_size=batch_size, 
+                                                   shuffle=False, 
+                                                   num_workers=4,
+                                                   collate_fn=utils.collate_fn)
+    
     data_loader_test = torch.utils.data.DataLoader(dataset_test, 
                                                    batch_size=batch_size, 
                                                    shuffle=False, 
                                                    num_workers=4,
+                                                   drop_last=False,
                                                    collate_fn=utils.collate_fn)
     
 
@@ -316,18 +329,23 @@ def run(batch_size=1, num_epochs=1, model_type = 'fasterrcnn_mobilenet_low', tes
         # update the learning rate
         lr_scheduler.step()
         # evaluate on the test dataset
-        coco_evaluator, metric_logger_eval = evaluate(model, data_loader_test, device=device)
+        coco_evaluator, metric_logger_eval = evaluate(model, data_loader_val, device=device)
         
         ### Plotting?
         loss_vals.append(metric_logger.loss.value)
         loss_vals_eval.append(metric_logger_eval.loss.value)
 
-    torch.save(model, model_type+ "_e"+str(num_epochs) + "_b"+str(batch_size) + "_t" + str(math.floor(test_percentage*100)) +".pt")
+    torch.save(model, model_type+ "_e"+str(num_epochs) + "_b"+str(batch_size) + "_tvt" + str(math.floor(val_percentage*100)) +".pt")
+    
+    #Perform test on test set
+    test()
 
+        
+        
     plt.plot(np.linspace(1, num_epochs, num_epochs), loss_vals, label='train')
     plt.plot(np.linspace(1, num_epochs, num_epochs), loss_vals_eval, label='validation')
     plt.legend()
     plt.xlabel('epochs')
     plt.ylabel('loss')
     plt.xticks(np.linspace(1, num_epochs, num_epochs))
-    plt.savefig(model_type+ "_e"+str(num_epochs) + "_b"+str(batch_size) + "_t" + str(math.floor(test_percentage*100)) +".png", bbox_inches='tight')
+    plt.savefig(model_type+ "_e"+str(num_epochs) + "_b"+str(batch_size) + "_tvt" + str(math.floor(val_percentage*100)) +".png", bbox_inches='tight')
