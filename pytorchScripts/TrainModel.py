@@ -178,13 +178,14 @@ def get_transform(train=False):
     custom_transforms = []
     custom_transforms.append(torchvision.transforms.ToTensor())
     if train:
-        custom_transforms.append(torchvision.transforms.RandomHorizontalFlip())
-        custom_transforms.append(torchvision.transforms.RandomVerticalFlip())
+        x=3
+        #custom_transforms.append(torchvision.transforms.RandomHorizontalFlip())
+        #custom_transforms.append(torchvision.transforms.RandomVerticalFlip())
         #custom_transforms.append(torchvision.transforms.RandomPosterize())
        # custom_transforms.append(torchvision.transforms.RandomSolarize())
-        custom_transforms.append(torchvision.transforms.RandomAdjustSharpness(2))
-        custom_transforms.append(torchvision.transforms.RandomAdjustSharpness(0))
-        custom_transforms.append(torchvision.transforms.RandomAutocontrast())
+       # custom_transforms.append(torchvision.transforms.RandomAdjustSharpness(2))
+       # custom_transforms.append(torchvision.transforms.RandomAdjustSharpness(0))
+        #custom_transforms.append(torchvision.transforms.RandomAutocontrast())
         #custom_transforms.append(torchvision.transforms.RandomEqualize())
     return torchvision.transforms.Compose(custom_transforms)
 
