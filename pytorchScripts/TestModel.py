@@ -104,21 +104,22 @@ def test_simple(data_loader_test, model, device, show_images=False):
             predictions = model(images)   
             
             for i, pred in enumerate(predictions):
-                        
-                best_index = torch.argmax(pred['scores'])
-                
-                #after 2 hours lost, this is the only method I found to create
-                # the tensor as size (1, 4) for boxes and size (1,1) for lab and scores
-                pred['boxes'] = torch.Tensor([np.array(pred['boxes'][best_index].detach().numpy())])
-                pred['labels'] = torch.IntTensor([pred['labels'][best_index]])
-                pred['scores'] = torch.Tensor([pred['scores'][best_index]])
+                   
+                if pred['scores'].size(0) > 0:
+                    best_index = torch.argmax(pred['scores'])
+                    
+                    #after 2 hours lost, this is the only method I found to create
+                    # the tensor as size (1, 4) for boxes and size (1,1) for lab and scores
+                    pred['boxes'] = torch.Tensor([np.array(pred['boxes'][best_index].cpu().numpy())])
+                    pred['labels'] = torch.IntTensor([pred['labels'][best_index]])
+                    pred['scores'] = torch.Tensor([pred['scores'][best_index]])
     
                 # to print images
                 test_images_to_print.append(images[i]) #Saving image values
                 
                 if (pred['boxes'].size(0) > 0):
                     output = {
-                        'boxes': pred['boxes'][0].detach().numpy().astype(np.int32),
+                        'boxes': pred['boxes'][0].cpu().numpy().astype(np.int32),
                         'scores': pred['scores']
                     }
                 else :
@@ -129,7 +130,10 @@ def test_simple(data_loader_test, model, device, show_images=False):
     
                 outputs_to_print.append(output) #Saving outputs and scores
                 
-            metric.update(preds=predictions, target= targets)
+            predictions = list(pred.cpu() for pred in predictions)    
+            targets = list(target.cpu() for target in targets)    
+    
+            metric.update(preds=predictions, target=targets)
             metric_result = metric.compute()
         
         if show_images:
