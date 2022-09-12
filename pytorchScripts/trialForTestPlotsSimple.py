@@ -11,7 +11,6 @@ import torchvision
 
 import sys
 sys.path.insert(1, 'detection')
-from engine import train_one_epoch, evaluate
 import utils
 
 from CustomCocoDataset import CustomCocoDataset
@@ -21,7 +20,6 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 import cv2
-from ensemble_boxes import weighted_boxes_fusion
 
 import albumentations as A
 from albumentations.pytorch.transforms import ToTensorV2
@@ -57,31 +55,28 @@ def test(data_loader_test, model, device):
             
             for i, pred in enumerate(predictions):
 
-                
-                if pred['scores'].size(0) > 0:
+                #if pred['scores'].size(0) > 0:
                     
-                    best_index = torch.argmax(pred['scores'])
-                    if pred['scores'][best_index] > detection_threshold :
+                best_index = torch.argmax(pred['scores'])
+                #if pred['scores'][best_index] > detection_threshold :
+                    
+                #after 2 hours lost, this is the only method I found to create
+                # the tensor as size (1, 4) for boxes and size (1,1) for lab and scores
+                pred['boxes'] = torch.Tensor([np.array(pred['boxes'][best_index].detach().numpy())])
+                pred['labels'] = torch.IntTensor([pred['labels'][best_index]])
+                pred['scores'] = torch.Tensor([pred['scores'][best_index]])
+
+                # else : 
+                #     for key in pred:
+                #         pred['boxes'] = torch.Tensor([[]])
+                #         pred['labels'] = torch.IntTensor([])
+                #         pred['scores'] = torch.Tensor([])
                         
-                        #after 2 hours lost, this is the only method I found to create
-                        # the tensor as size (1, 4) for boxes and size (1,1) for lab and scores
-                        pred['boxes'] = torch.Tensor([np.array(pred['boxes'][best_index].detach().numpy())])
-                        pred['labels'] = torch.Tensor([np.array([pred['labels'][best_index].detach().numpy()])])
-                        pred['scores'] = torch.Tensor([np.array([pred['scores'][best_index].detach().numpy()])])
-                        
-                        #for key in pred:
-                            #pred[key] = torch.Tensor([pred[key][best_index]])
-                    else : 
-                        for key in pred:
-                            pred['boxes'] = torch.Tensor([[]])
-                            pred['labels'] = torch.Tensor([0])
-                            pred['scores'] = torch.Tensor([0])
-                            
-                else : 
-                    for key in pred:
-                        pred['boxes'] = torch.Tensor([[]])
-                        pred['labels'] = torch.Tensor([0])
-                        pred['scores'] = torch.Tensor([0])
+                # else : 
+                #     for key in pred:
+                #         pred['boxes'] = torch.Tensor([[]])
+                #         pred['labels'] = torch.IntTensor([])
+                #         pred['scores'] = torch.Tensor([])
                  
                # print ("predictions after:")
                 #print(predictions)
@@ -105,9 +100,9 @@ def test(data_loader_test, model, device):
                 
 
             
-            metric.update(predictions, targets)
-            from pprint import pprint
-            pprint(metric.compute())
+            metric.update(preds=predictions, target= targets)
+            metric_result = metric.compute()
+            print(metric_result)
         
         ########### show images results
         fig, axs = plt.subplots(2, 2, figsize=(32, 16))
@@ -126,6 +121,10 @@ def test(data_loader_test, model, device):
                               (box[0], box[1]),
                               (box[2], box[3]),
                               (220, 0, 0), 2)
+                
+                cv2.putText(sample, str(score[0].detach().numpy()), (round(box[0].item()), round(box[3].item()+20)), 
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.9, (36,255,12), 2)
+
             axs[i].set_axis_off()
             axs[i].imshow(sample)
 
