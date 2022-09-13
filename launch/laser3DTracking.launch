@@ -2,6 +2,9 @@
 <launch>
     
     <env name="ROSCONSOLE_FORMAT" value="[${severity}] [${time}] [${node}] [${function}] [${line}]: ${message}"/>
+    
+    <arg name="model_name" default="model1.pt"/>
+    <arg name="inference_threshold" default="0.3"/>
 
     <arg name="camera" default="D435_head_camera"/>
     <arg name="image" default="color/image_raw"/>
@@ -57,7 +60,10 @@
         <param name="pub_out_keypoint_topic" value="$(arg keypoint_topic)"/>
         <param name="pub_out_images" value="$(arg pub_out_images)"/>
         <param name="pub_out_images_topic" value="$(arg pub_out_images_topic)"/>
-
+        
+        <param name="model_name" value="$(arg model_name)"/>
+        <param name="inference_threshold" value="$(arg inference_threshold)"/>
+        
     </node>
 
         

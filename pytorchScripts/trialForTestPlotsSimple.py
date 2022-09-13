@@ -193,9 +193,17 @@ test_result = test(data_loader_test, model, device)
 
 fig, (ax1, ax2) = plt.subplots(1, 2)
 
-test_labels = ['map', 'map_50', 'map_75', 'map_s', 'map_m', 'map_l']
-test_data = [test_result['map'], test_result['map_50'], test_result['map_75'],
-             test_result['map_small'], test_result['map_medium'], test_result['map_large']]
+test_labels = []
+test_data = []
+for key,value in test_result.items():
+    if value >= 0 and key.startswith('map'):
+        test_labels.append(key)
+        test_data.append(value.item())
+
+#test_labels = ['map', 'map_50', 'map_75', 'map_s', 'map_m', 'map_l']
+#test_data = [test_result['map'], test_result['map_50'], test_result['map_75'],
+#             test_result['map_small'], test_result['map_medium'], test_result['map_large']]
+
 ax2.bar(test_labels, test_data)
 ax2.set_xticks(range(len(test_labels)), test_labels, rotation='vertical')
 

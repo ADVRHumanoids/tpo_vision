@@ -57,11 +57,29 @@ class DetectorManager():
     
     def __init__(self):
         
-        model_path = os.path.join(rospkg.RosPack().get_path('tpo_vision'), "pytorchScripts", "model1.pt")
+
+        
+        ### Params
+        camera_image_topic = rospy.get_param('camera_image_topic', '/D435_head_camera/color/image_raw/')
+        self.camera_image_transport = rospy.get_param('transport', 'compressed')
+        ros_image_input_topic = camera_image_topic + self.camera_image_transport
+        
+        pub_out_keypoint_topic = rospy.get_param('pub_out_keypoint_topic', "/detection_output_keypoint")
+        self.pub_out_images = rospy.get_param('pub_out_images', True)
+        pub_out_images_topic = rospy.get_param('pub_out_images_topic', "/detection_output_img")
+        
+        #camera_info_topic = rospy.get_param('camera_info_topic', '/D435_head_camera/color/camera_info')
+        #getCameraInfo(camera_info_topic)
+        #self.cam_info = getCameraInfo.cam_info
+        
+        model_name = rospy.get_param('model_name', 'model1.pt')
+        self.threshold = rospy.get_param('inference_threshold', 0.3)
+        
+        ############ PYTHORCH STUFF
+        model_path = os.path.join(rospkg.RosPack().get_path('tpo_vision'), "pytorchScripts", model_name)
         
         rospy.loginfo(f"Using model {model_path}")
         
-        ############ PYTHORCH STUFF
         if torch.cuda.is_available():
             self.device = torch.device('cuda')
             rospy.loginfo("CUDA available, use GPU")
@@ -79,22 +97,8 @@ class DetectorManager():
         self.transform_chain = torchvision.transforms.Compose([torchvision.transforms.ToTensor(),
                                     torchvision.transforms.ConvertImageDtype(torch.float)
                                     ])
-        self.threshold = 0.3
         
         ############ ROS STUFF
-        
-        ### Params
-        camera_image_topic = rospy.get_param('camera_image_topic', '/D435_head_camera/color/image_raw/')
-        self.camera_image_transport = rospy.get_param('transport', 'compressed')
-        ros_image_input_topic = camera_image_topic + self.camera_image_transport
-        
-        pub_out_keypoint_topic = rospy.get_param('pub_out_keypoint_topic', "/detection_output_keypoint")
-        self.pub_out_images = rospy.get_param('pub_out_images', True)
-        pub_out_images_topic = rospy.get_param('pub_out_images_topic', "/detection_output_img")
-        
-        #camera_info_topic = rospy.get_param('camera_info_topic', '/D435_head_camera/color/camera_info')
-        #getCameraInfo(camera_info_topic)
-        #self.cam_info = getCameraInfo.cam_info
         
         self.bridge = CvBridge()
         if self.camera_image_transport == "compressed":
