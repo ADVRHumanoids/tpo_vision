@@ -59,6 +59,8 @@ class DetectorManager():
         
         model_path = os.path.join(rospkg.RosPack().get_path('tpo_vision'), "pytorchScripts", "model1.pt")
         
+        rospy.loginfo(f"Using model {model_path}")
+        
         ############ PYTHORCH STUFF
         if torch.cuda.is_available():
             self.device = torch.device('cuda')

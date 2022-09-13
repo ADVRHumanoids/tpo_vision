@@ -113,9 +113,15 @@ def test_simple(data_loader_test, model, device, show_images=False):
                     pred['boxes'] = torch.Tensor([np.array(pred['boxes'][best_index].cpu().numpy())])
                     pred['labels'] = torch.IntTensor([pred['labels'][best_index]])
                     pred['scores'] = torch.Tensor([pred['scores'][best_index]])
-    
+                
+                else: 
+                    for key in pred:
+                        pred['boxes'] = torch.Tensor([[0,0,0,0]])
+                        pred['labels'] = torch.IntTensor([10])
+                        pred['scores'] = torch.Tensor([0])
+                        
                 # to print images
-                test_images_to_print.append(images[i]) #Saving image values
+                test_images_to_print.append(images[i]) #Saving image values        
                 
                 if (pred['boxes'].size(0) > 0):
                     output = {
@@ -130,9 +136,16 @@ def test_simple(data_loader_test, model, device, show_images=False):
     
                 outputs_to_print.append(output) #Saving outputs and scores
                 
-            predictions = list(pred.cpu() for pred in predictions)    
-            targets = list(target.cpu() for target in targets)    
-    
+            #all to cpu
+            for pred in predictions:
+                pred['boxes'].cpu()
+                pred['labels'].cpu()
+                pred['scores'].cpu()
+
+            for target in targets:
+                target['boxes'].cpu()
+                target['labels'].cpu()
+                
             metric.update(preds=predictions, target=targets)
             metric_result = metric.compute()
         

@@ -26,8 +26,6 @@ from CustomCocoDataset import CustomCocoDataset
 import numpy as np
 import matplotlib.pyplot as plt
 
-import albumentations as A
-from albumentations.pytorch.transforms import ToTensorV2
 from TestModel import test_simple
 
 
@@ -330,22 +328,25 @@ def run(batch_size=1, num_epochs=1, model_type = 'fasterrcnn_mobilenet_low', val
         loss_vals.append(metric_logger.loss.value)
         loss_vals_eval.append(metric_logger_eval.loss.value)
 
-    torch.save(model, model_type+ "_e"+str(num_epochs) + "_b"+str(batch_size) + "_tvt" + str(math.floor(val_percentage*100)) +".pt")
+    torch.save(model, model_type+ "_e"+str(num_epochs) + "_b"+str(batch_size) + "_tvt" + 
+               str(math.floor(train_percentage*100)) + str(math.floor(val_percentage*100)) + str(math.floor(test_percentage*100)) +".pt")
     
     #Perform test on test set
     test_result = test_simple(data_loader_test, model, device)
         
     fig, (ax1, ax2) = plt.subplots(1, 2)
-    ax1.plt.plot(np.linspace(1, num_epochs, num_epochs), loss_vals, label='train')
-    ax1.plt.plot(np.linspace(1, num_epochs, num_epochs), loss_vals_eval, label='validation')
-    ax1.plt.legend()
-    ax1.plt.xlabel('epochs')
-    ax1.plt.ylabel('loss')
-    ax1.plt.xticks(np.linspace(1, num_epochs, num_epochs))
+    ax1.plot(np.linspace(1, num_epochs, num_epochs), loss_vals, label='train')
+    ax1.plot(np.linspace(1, num_epochs, num_epochs), loss_vals_eval, label='validation')
+    ax1.legend()
+    ax1.set_xlabel('epochs')
+    ax1.set_ylabel('loss')
+    ax1.set_xticks(np.linspace(1, num_epochs, num_epochs))
     
     test_labels = ['map', 'map_50', 'map_75', 'map_s', 'map_m', 'map_l']
     test_data = [test_result['map'], test_result['map_50'], test_result['map_75'],
-                 test_result['map_s'], test_result['map_m'], test_result['map_l']]
+                 test_result['map_small'], test_result['map_medium'], test_result['map_large']]
     ax2.bar(test_labels, test_data)
-    
-    fig.savefig(model_type+ "_e"+str(num_epochs) + "_b"+str(batch_size) + "_tvt" + str(math.floor(val_percentage*100)) +".png", bbox_inches='tight')
+    ax2.set_xticks(range(len(test_labels)), test_labels, rotation='vertical')
+     
+    fig.savefig(model_type+ "_e"+str(1) + "_b"+str(1) + "_tvt" +
+                str(math.floor(0.7*100)) + str(math.floor(0.2*100)) + str(math.floor(0.1*100)) +".png", bbox_inches='tight')

@@ -12,6 +12,7 @@ import torchvision
 import sys
 sys.path.insert(1, 'detection')
 import utils
+import math
 
 from CustomCocoDataset import CustomCocoDataset
 
@@ -71,9 +72,9 @@ def test(data_loader_test, model, device):
                         
                 else : 
                      for key in pred:
-                         pred['boxes'] = torch.Tensor([[]])
-                         pred['labels'] = torch.IntTensor([])
-                         pred['scores'] = torch.Tensor([])
+                         pred['boxes'] = torch.Tensor([[0,0,0,0]])
+                         pred['labels'] = torch.IntTensor([10])
+                         pred['scores'] = torch.Tensor([0])
                  
                # print ("predictions after:")
                 #print(predictions)
@@ -100,6 +101,7 @@ def test(data_loader_test, model, device):
             metric.update(preds=predictions, target= targets)
             metric_result = metric.compute()
             print(metric_result)
+            return metric_result
         
         ########### show images results
         fig, axs = plt.subplots(2, 2, figsize=(32, 16))
@@ -128,7 +130,6 @@ def test(data_loader_test, model, device):
 
 
 data_dir = 'data/laser_v3/'
-detach
 data_dir_images = data_dir + 'images'
 data_dir_annotations = data_dir + 'annotations/instances_default.json'
 
@@ -140,7 +141,7 @@ def get_transform(train=None):
         #custom_transforms.append(torchvision.transforms.RandomHorizontalFlip())
         #custom_transforms.append(torchvision.transforms.RandomVerticalFlip())
         #custom_transforms.append(torchvision.transforms.RandomPosterize())
-       # custom_transforms.append(torchvision.transforms.RandomSolarize())
+        #custom_transforms.append(torchvision.transforms.RandomSolarize())
         #custom_transforms.append(torchvision.transforms.RandomAdjustSharpness(2))
         #custom_transforms.append(torchvision.transforms.RandomAdjustSharpness(0))
         #custom_transforms.append(torchvision.transforms.RandomAutocontrast())
@@ -175,7 +176,7 @@ data_loader_test = torch.utils.data.DataLoader(dataset_test,
 
 ###testing setup
 
-model_path = 'faster_rcnn_v2_e30_b8_t20.pt'
+model_path = 'fasterrcnn_mobilenet_high_e10_b8_t20.pt'
 model = None
 if torch.cuda.is_available():
     device = torch.device('cuda')
@@ -188,6 +189,16 @@ else:
     model = torch.load(model_path, map_location=torch.device('cpu'))
 
 
-test(data_loader_test, model, device)
+test_result = test(data_loader_test, model, device)
 
+fig, (ax1, ax2) = plt.subplots(1, 2)
+
+test_labels = ['map', 'map_50', 'map_75', 'map_s', 'map_m', 'map_l']
+test_data = [test_result['map'], test_result['map_50'], test_result['map_75'],
+             test_result['map_small'], test_result['map_medium'], test_result['map_large']]
+ax2.bar(test_labels, test_data)
+ax2.set_xticks(range(len(test_labels)), test_labels, rotation='vertical')
+
+fig.savefig("asd"+ "_e"+str(1) + "_b"+str(1) + "_tvt" +
+            str(math.floor(0.7*100)) + str(math.floor(0.2*100)) + str(math.floor(0.1*100)) +".png", bbox_inches='tight')
 
