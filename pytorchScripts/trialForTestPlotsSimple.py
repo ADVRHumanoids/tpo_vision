@@ -21,9 +21,6 @@ import torch
 import matplotlib.pyplot as plt
 import cv2
 
-import albumentations as A
-from albumentations.pytorch.transforms import ToTensorV2
-
 from torchmetrics.detection.mean_ap import MeanAveragePrecision
 
 detection_threshold = 0.4
@@ -139,21 +136,16 @@ def get_transform(train=None):
     custom_transforms = []
     custom_transforms.append(torchvision.transforms.ToTensor())
     if train:
-        custom_transforms.append(torchvision.transforms.RandomHorizontalFlip())
-        custom_transforms.append(torchvision.transforms.RandomVerticalFlip())
+        x = 0
+        #custom_transforms.append(torchvision.transforms.RandomHorizontalFlip())
+        #custom_transforms.append(torchvision.transforms.RandomVerticalFlip())
         #custom_transforms.append(torchvision.transforms.RandomPosterize())
        # custom_transforms.append(torchvision.transforms.RandomSolarize())
-        custom_transforms.append(torchvision.transforms.RandomAdjustSharpness(2))
-        custom_transforms.append(torchvision.transforms.RandomAdjustSharpness(0))
-        custom_transforms.append(torchvision.transforms.RandomAutocontrast())
+        #custom_transforms.append(torchvision.transforms.RandomAdjustSharpness(2))
+        #custom_transforms.append(torchvision.transforms.RandomAdjustSharpness(0))
+        #custom_transforms.append(torchvision.transforms.RandomAutocontrast())
         #custom_transforms.append(torchvision.transforms.RandomEqualize())
     return torchvision.transforms.Compose(custom_transforms)
-
-def get_test_transform():
-    return A.Compose([
-        # A.Resize(512, 512),
-        ToTensorV2(p=1.0)
-    ])
 
 
 dataset = CustomCocoDataset(root=data_dir_images,
