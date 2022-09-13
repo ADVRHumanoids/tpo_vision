@@ -189,12 +189,6 @@ def get_transform(train=False):
         #custom_transforms.append(torchvision.transforms.RandomEqualize())
     return torchvision.transforms.Compose(custom_transforms)
 
-def get_test_transform():
-    return A.Compose([
-        # A.Resize(512, 512),
-        ToTensorV2(p=1.0)
-    ])
-
 
 def run(batch_size=1, num_epochs=1, model_type = 'fasterrcnn_mobilenet_low', val_percentage=0.20, test_percentage=0.10) :
 #if __name__ == "__main__":
@@ -204,7 +198,7 @@ def run(batch_size=1, num_epochs=1, model_type = 'fasterrcnn_mobilenet_low', val
 #    val_percentage=0.20
 #    test_percentage=0.10
     
-    #torch.manual_seed(10)
+    #torch.manual_seed(10)if pred['scores'].size(0) > 0:
     # select device (whether GPU or CPU)
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
     
@@ -229,7 +223,7 @@ def run(batch_size=1, num_epochs=1, model_type = 'fasterrcnn_mobilenet_low', val
                               )
     dataset_test = CustomCocoDataset(root=data_dir_images,
                           annotation=data_dir_annotations,
-                          transforms=get_test_transform()
+                          transforms=get_transform(False)
                           )
     
     # split the dataset in train val and test set

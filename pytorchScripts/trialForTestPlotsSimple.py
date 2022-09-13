@@ -52,28 +52,28 @@ def test(data_loader_test, model, device):
             
             for i, pred in enumerate(predictions):
 
-                #if pred['scores'].size(0) > 0:
+                if pred['scores'].size(0) > 0:
                     
-                best_index = torch.argmax(pred['scores'])
-                #if pred['scores'][best_index] > detection_threshold :
-                    
-                #after 2 hours lost, this is the only method I found to create
-                # the tensor as size (1, 4) for boxes and size (1,1) for lab and scores
-                pred['boxes'] = torch.Tensor([np.array(pred['boxes'][best_index].detach().numpy())])
-                pred['labels'] = torch.IntTensor([pred['labels'][best_index]])
-                pred['scores'] = torch.Tensor([pred['scores'][best_index]])
-
-                # else : 
-                #     for key in pred:
-                #         pred['boxes'] = torch.Tensor([[]])
-                #         pred['labels'] = torch.IntTensor([])
-                #         pred['scores'] = torch.Tensor([])
+                    best_index = torch.argmax(pred['scores'])
+                    #if pred['scores'][best_index] > detection_threshold :
                         
-                # else : 
-                #     for key in pred:
-                #         pred['boxes'] = torch.Tensor([[]])
-                #         pred['labels'] = torch.IntTensor([])
-                #         pred['scores'] = torch.Tensor([])
+                    #after 2 hours lost, this is the only method I found to create
+                    # the tensor as size (1, 4) for boxes and size (1,1) for lab and scores
+                    pred['boxes'] = torch.Tensor([np.array(pred['boxes'][best_index].detach().numpy())])
+                    pred['labels'] = torch.IntTensor([pred['labels'][best_index]])
+                    pred['scores'] = torch.Tensor([pred['scores'][best_index]])
+    
+                    # else : 
+                    #     for key in pred:
+                    #         pred['boxes'] = torch.Tensor([[]])
+                    #         pred['labels'] = torch.IntTensor([])
+                    #         pred['scores'] = torch.Tensor([])
+                        
+                else : 
+                     for key in pred:
+                         pred['boxes'] = torch.Tensor([[]])
+                         pred['labels'] = torch.IntTensor([])
+                         pred['scores'] = torch.Tensor([])
                  
                # print ("predictions after:")
                 #print(predictions)
@@ -128,7 +128,7 @@ def test(data_loader_test, model, device):
 
 
 data_dir = 'data/laser_v3/'
-
+detach
 data_dir_images = data_dir + 'images'
 data_dir_annotations = data_dir + 'annotations/instances_default.json'
 
@@ -175,7 +175,7 @@ data_loader_test = torch.utils.data.DataLoader(dataset_test,
 
 ###testing setup
 
-model_path = 'model1.pt'
+model_path = 'faster_rcnn_v2_e30_b8_t20.pt'
 model = None
 if torch.cuda.is_available():
     device = torch.device('cuda')
