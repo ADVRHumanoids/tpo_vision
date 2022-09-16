@@ -79,6 +79,13 @@ int Laser3DTracking::run () {
 
 bool Laser3DTracking::sendTransformFrom2D() {
     
+    //header in pcl cloud is a uint in microsecond, not a ros::Time
+    ros::Time cloud_time;
+    cloud_time.fromNSec(cloud->header.stamp*1000);
+    //ROS_INFO("cloud time %s;\timage time %s", 
+    //        std::to_string(cloud_time.toSec()).c_str(),
+    //        std::to_string(keypoint_image.header.stamp.toSec()).c_str());
+    
     if(wait_for_new_detection) {
         return false;
     }
@@ -91,9 +98,6 @@ bool Laser3DTracking::sendTransformFrom2D() {
     } 
     
     ros::Duration time_diff;
-    //header in pcl cloud is a uint in microsecond, not a ros::Time
-    ros::Time cloud_time;
-    cloud_time.fromNSec(cloud->header.stamp*1000);
     
 //     std::cout << "aaaaaaaaaaaaaa" << std::endl;
 //     std::cout << " ros: " << cloud_time.toNSec() << std::endl;
