@@ -80,7 +80,7 @@ private:
     bool pub_out_images;
     image_transport::Publisher output_image_pub;
     cv_bridge::CvImage cv_bridge_output_image;
-    void pubImageWithRectangle(int pixel_x, int pixel_y);
+    void pubImageWithRectangle(int pixel_x, int pixel_y, bool rectangle = true);
     
     
     bool show_images;

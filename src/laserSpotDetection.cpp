@@ -74,15 +74,22 @@ bool LaserSpotDetection::run() {
     
     if (!detect3(cv_bridge_image.image, pixel_x, pixel_y)) {
         
-        return false;
-    }
-    
-    pubKeypoint(std::lround(pixel_x), std::lround(pixel_y), confidence);
+        pubKeypoint(0, 0, 0);
 
-    if (pub_out_images) {
+        if (pub_out_images) {
         
-        pubImageWithRectangle(std::lround(pixel_x), std::lround(pixel_y));
+            pubImageWithRectangle(0, 0, false);
+        }
+        
+    } else {
+    
+        pubKeypoint(std::lround(pixel_x), std::lround(pixel_y), confidence);
 
+        if (pub_out_images) {
+            
+            pubImageWithRectangle(std::lround(pixel_x), std::lround(pixel_y), true);
+
+        }
     }
     
     return true; 
@@ -122,12 +129,13 @@ void LaserSpotDetection::pubKeypoint(int pixel_x, int pixel_y, double confidence
     keypoint_pub.publish(msg);
 }
 
-void LaserSpotDetection::pubImageWithRectangle(int pixel_x, int pixel_y) {
+void LaserSpotDetection::pubImageWithRectangle(int pixel_x, int pixel_y, bool rectangle) {
     
     cv_bridge_output_image = cv_bridge_image;
 
-    cv::circle(cv_bridge_output_image.image, cv::Point(pixel_x, pixel_y), 10, cv::Scalar(0,0,255), 3);
-
+    if (rectangle) {
+        cv::circle(cv_bridge_output_image.image, cv::Point(pixel_x, pixel_y), 10, cv::Scalar(0,0,255), 3);
+    }
     output_image_pub.publish(cv_bridge_output_image.toImageMsg());
 }
 
