@@ -60,23 +60,24 @@ class DetectorManager():
 
         
         ### Params
-        camera_image_topic = rospy.get_param('camera_image_topic', '/D435_head_camera/color/image_raw/')
-        self.camera_image_transport = rospy.get_param('transport', 'compressed')
-        ros_image_input_topic = camera_image_topic + self.camera_image_transport
+        camera_image_topic = rospy.get_param('~camera_image_topic', '/D435_head_camera/color/image_raw')
+        self.camera_image_transport = rospy.get_param('~transport', 'compressed')
+        ros_image_input_topic = camera_image_topic + '/' + self.camera_image_transport
         
-        pub_out_keypoint_topic = rospy.get_param('pub_out_keypoint_topic', "/detection_output_keypoint")
-        self.pub_out_images = rospy.get_param('pub_out_images', True)
-        pub_out_images_topic = rospy.get_param('pub_out_images_topic', "/detection_output_img")
+        pub_out_keypoint_topic = rospy.get_param('~pub_out_keypoint_topic', "/detection_output_keypoint")
+        self.pub_out_images = rospy.get_param('~pub_out_images', True)
         
-        #camera_info_topic = rospy.get_param('camera_info_topic', '/D435_head_camera/color/camera_info')
+        pub_out_images_topic = rospy.get_param('~pub_out_images_topic', "/detection_output_img")
+        
+        #camera_info_topic = rospy.get_param('~camera_info_topic', '/D435_head_camera/color/camera_info')
         #getCameraInfo(camera_info_topic)
         #self.cam_info = getCameraInfo.cam_info
         
-        model_name = rospy.get_param('model_name', 'model1.pt')
-        self.threshold = rospy.get_param('inference_threshold', 0.3)
+        model_name = rospy.get_param('~model_name', 'model1.pt')
+        self.threshold = rospy.get_param('~inference_threshold', 0.3)
         
         ############ PYTHORCH STUFF
-        model_path = os.path.join(rospkg.RosPack().get_path('tpo_vision'), "pytorchScripts", model_name)
+        model_path = os.path.join(rospkg.RosPack().get_path('tpo_vision'), "../../learningStuff", model_name)
         
         rospy.loginfo(f"Using model {model_path}")
         
