@@ -155,6 +155,7 @@ class DetectorManager():
         
         if not self.new_image:
             rospy.logwarn("no new image")
+            self.__pubROS()
             return False
         
         self.__process_image()
@@ -168,12 +169,12 @@ class DetectorManager():
         
         if (len(out['scores']) == 0):
             rospy.logwarn("no detection found at all (len is 0)")
-            self.__pubImageWithRectangle(box=None, label=None)
+            self.__pubROS()
             return False
         
         if (max(out['scores']) < self.threshold):
             rospy.logwarn("no detection found under the threshold %s", self.threshold)
-            self.__pubImageWithRectangle(box=None, label=None)
+            self.__pubROS()
             return False
         
         
@@ -181,18 +182,25 @@ class DetectorManager():
         best_index = torch.argmax(out['scores'])
         
         #show_image_with_boxes(img, out['boxes'][best_index], out['labels'][best_index])
-        
-        self.__pubKeypoint(out['boxes'][best_index], out['scores'][best_index], out['labels'][best_index])
-         
-        if self.pub_out_images:
-            self.__pubImageWithRectangle(out['boxes'][best_index], out['labels'][best_index])
+            
+        self.__pubROS(out['boxes'][best_index], out['scores'][best_index], out['labels'][best_index])
         
         self.new_image = False
         
         return True
-
+    
+    def __pubROS(self, box=None, score=None, label=None):
+        
+        self.__pubKeypoint(box, score, label)
+        
+        if self.pub_out_images:
+            self.__pubImageWithRectangle(box, label)
+            
 
     def __pubImageWithRectangle(self, box=None, label=None):
+        
+        if not self.pub_out_images:
+            return False
         
         #first convert back to unit8
         self.cv_image_output = torchvision.transforms.functional.convert_image_dtype(
@@ -224,18 +232,26 @@ class DetectorManager():
     """
     box is tensor and may be still float, we round befor filling the msg
     """        
-    def __pubKeypoint(self, box, score, label):
+    def __pubKeypoint(self, box=None, score=None, label=None):
         
         msg = KeypointImage()
         msg.header.frame_id = self.ros_image_input.header.frame_id
         msg.header.seq = self.ros_image_input.header.seq
         msg.header.stamp = rospy.Time.now()
         
-        #box from model has format: [x_0, y_0, x_1, y_1]
-        msg.x_pixel = round(box[0].item() + (box[2].item() - box[0].item())/2)
-        msg.y_pixel = round(box[1].item() + (box[3].item()  - box[1].item())/2)
-        msg.label = label
-        msg.confidence = score
+        if (not box == None) and (not score == None) and (not label == None):
+        
+            #box from model has format: [x_0, y_0, x_1, y_1]
+            msg.x_pixel = round(box[0].item() + (box[2].item() - box[0].item())/2)
+            msg.y_pixel = round(box[1].item() + (box[3].item()  - box[1].item())/2)
+            msg.label = label
+            msg.confidence = score
+            
+        else:
+            msg.x_pixel = 0
+            msg.y_pixel = 0
+            msg.label = 0
+            msg.confidence = 0
         
         self.keypoint_pub.publish(msg)
         
