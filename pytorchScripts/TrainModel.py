@@ -179,16 +179,13 @@ def get_transform(train=False):
         x=3
         #custom_transforms.append(torchvision.transforms.RandomHorizontalFlip())
         #custom_transforms.append(torchvision.transforms.RandomVerticalFlip())
-        #custom_transforms.append(torchvision.transforms.RandomPosterize())
-       # custom_transforms.append(torchvision.transforms.RandomSolarize())
-       # custom_transforms.append(torchvision.transforms.RandomAdjustSharpness(2))
-       # custom_transforms.append(torchvision.transforms.RandomAdjustSharpness(0))
+        #custom_transforms.append(torchvision.transforms.RandomAdjustSharpness(1.3))
+        #custom_transforms.append(torchvision.transforms.RandomAdjustSharpness(0.7))
         #custom_transforms.append(torchvision.transforms.RandomAutocontrast())
-        #custom_transforms.append(torchvision.transforms.RandomEqualize())
     return torchvision.transforms.Compose(custom_transforms)
 
 
-def run(batch_size=1, num_epochs=1, model_type = 'fasterrcnn_mobilenet_low', val_percentage=0.20, test_percentage=0.10) :
+def run(batch_size=1, num_epochs=1, model_type = 'fasterrcnn_mobilenet_low', val_percentage=0.20, test_percentage=0.10, data_name="laser_v3") :
 #if __name__ == "__main__":
 #    batch_size=1
 #    num_epochs=10
@@ -204,7 +201,7 @@ def run(batch_size=1, num_epochs=1, model_type = 'fasterrcnn_mobilenet_low', val
     num_classes = 2
     
     # path to your own data and coco file
-    data_dir = 'data/laser_v3/'
+    data_dir = '../../../learningStuff/data/' + data_name + '/'
     #data_dir = 'data/data1/coco/'
     
     data_dir_images = data_dir + 'images'
@@ -329,7 +326,10 @@ def run(batch_size=1, num_epochs=1, model_type = 'fasterrcnn_mobilenet_low', val
         loss_vals_eval.append(metric_logger_eval.loss.value)
 
     torch.save(model, model_type+ "_e"+str(num_epochs) + "_b"+str(batch_size) + "_tvt" + 
-               str(math.floor(train_percentage*100)) + str(math.floor(val_percentage*100)) + str(math.floor(test_percentage*100)) +".pt")
+               str(math.floor(train_percentage*100)) + 
+               str(math.floor(val_percentage*100)) + 
+               str(math.floor(test_percentage*100)) +
+               "_" + data_name +".pt")
     
 
         
@@ -340,22 +340,26 @@ def run(batch_size=1, num_epochs=1, model_type = 'fasterrcnn_mobilenet_low', val
     ax1.set_xlabel('epochs')
     ax1.set_ylabel('loss')
     ax1.set_xticks(np.linspace(1, num_epochs, num_epochs))
-    
+        
     #Perform test on test set
-    test_result = test_simple(data_loader_test, model, device)
+    if len(data_loader_test) > 0 :
+        test_result = test_simple(data_loader_test, model, device)
+        
+        test_labels = []
+        test_data = []
+        for key,value in test_result.items():
+            if value >= 0 and key.startswith('map'):
+                test_labels.append(key)
+                test_data.append(value.item())
     
-    test_labels = []
-    test_data = []
-    for key,value in test_result.items():
-        if value >= 0 and key.startswith('map'):
-            test_labels.append(key)
-            test_data.append(value.item())
-    
-    #test_labels = ['map', 'map_50', 'map_75', 'map_s', 'map_m', 'map_l']
-    #test_data = [test_result['map'], test_result['map_50'], test_result['map_75'],
-    #             test_result['map_small'], test_result['map_medium'], test_result['map_large']]
-    ax2.bar(test_labels, test_data)
-    ax2.set_xticks(range(len(test_labels)), test_labels, rotation='vertical')
+        #test_labels = ['map', 'map_50', 'map_75', 'map_s', 'map_m', 'map_l']
+        #test_data = [test_result['map'], test_result['map_50'], test_result['map_75'],
+        #             test_result['map_small'], test_result['map_medium'], test_result['map_large']]
+        ax2.bar(test_labels, test_data)
+        ax2.set_xticks(range(len(test_labels)), test_labels, rotation='vertical')
      
-    fig.savefig(model_type+ "_e"+str(1) + "_b"+str(1) + "_tvt" +
-                str(math.floor(0.7*100)) + str(math.floor(0.2*100)) + str(math.floor(0.1*100)) +".png", bbox_inches='tight')
+    fig.savefig(model_type+ "_e"+str(num_epochs) + "_b"+str(batch_size) + "_tvt" +
+                str(math.floor(train_percentage*100)) + 
+                str(math.floor(val_percentage*100)) +
+                str(math.floor(test_percentage*100)) + 
+                "_" + data_name + ".png", bbox_inches='tight')
