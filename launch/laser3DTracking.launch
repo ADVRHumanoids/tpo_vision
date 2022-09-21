@@ -3,8 +3,11 @@
     
     <env name="ROSCONSOLE_FORMAT" value="[${severity}] [${time}] [${node}] [${function}] [${line}]: ${message}"/>
     
-    <arg name="model_name" default="model1.pt"/>
-    <arg name="inference_threshold" default="0.3"/>
+    <!--<arg name="model_name" default="fasterrcnn_mobilenet_high_e10_b4_tvt702010_laserv3.pt"/> -->
+<!--    <arg name="model_name" default="faster_rcnn_v2_e5_b1_tvt652510_data2.pt"/>-->
+    <!--<arg name="model_name" default="fasterrcnn_mobilenet_high_e10_b2_tvt652510_data2.pt"/> -->
+<!--    <arg name="model_name" default="faster_rcnn_v1_e10_b2_tvt80200_coco.pt"/> -->
+     <arg name="model_name" default="model1.pt"/>  
     
     <arg name="rviz" default="false"/>
 
@@ -17,7 +20,7 @@
     <arg name="ref_frame" default="$(arg camera)_color_optical_frame" />
     <arg name="camera_frame" default="$(arg camera)_color_optical_frame" />
     
-    <arg name="detection_confidence_threshold" default="0.2" />
+    <arg name="detection_confidence_threshold" default="0.0" />
     <arg name="cloud_detection_max_sec_diff" default="5" />
     
     <arg name="keypoint_topic" default="/detection_output_keypoint" />
@@ -73,7 +76,6 @@
             <param name="pub_out_images_topic" value="$(arg pub_out_images_topic)"/>
             
             <param name="model_name" value="$(arg model_name)"/>
-            <param name="inference_threshold" value="$(arg inference_threshold)"/>
             
         </node>
     </group>

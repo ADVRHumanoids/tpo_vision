@@ -86,16 +86,13 @@ bool Laser3DTracking::sendTransformFrom2D() {
     //        std::to_string(cloud_time.toSec()).c_str(),
     //        std::to_string(keypoint_image.header.stamp.toSec()).c_str());
     
-    if(wait_for_new_detection) {
-        return false;
-    }
     
     if (keypoint_image.confidence <= detection_confidence_threshold ){
     
-        ROS_WARN("Confidence of arrived keypoint detection message is below the threshold (%s < %s)", 
-                 std::to_string(keypoint_image.confidence).c_str(), std::to_string(detection_confidence_threshold).c_str());
+        //ROS_WARN("Confidence of arrived keypoint detection message is below the threshold (%s < %s)", 
+        //         std::to_string(keypoint_image.confidence).c_str(), std::to_string(detection_confidence_threshold).c_str());
         return false;
-    } 
+    }
     
     ros::Duration time_diff;
     
@@ -116,8 +113,6 @@ bool Laser3DTracking::sendTransformFrom2D() {
                     std::to_string(cloud_detection_max_sec_diff).c_str()
                     );    
             
-            wait_for_new_detection = true;
-            
             return false;
         } 
         
@@ -132,13 +127,21 @@ bool Laser3DTracking::sendTransformFrom2D() {
                     std::to_string(time_diff.toSec()).c_str(),
                     std::to_string(cloud_detection_max_sec_diff).c_str()
                     );    
-            wait_for_new_detection = true;
+
             return false;
         } 
     }
     
     //std::cout << "difffff " << time_diff.toSec() << std::endl;
     
+    updateTransform();
+    tf_broadcaster.sendTransform(ref_T_spot);
+ 
+    return true;
+}
+
+bool Laser3DTracking::updateTransform ()
+{
     ref_T_spot.header.stamp = ros::Time::now();
     
     auto pointXYZ = cloud->at(keypoint_image.x_pixel, keypoint_image.y_pixel);
@@ -149,8 +152,6 @@ bool Laser3DTracking::sendTransformFrom2D() {
     
     ref_T_spot.transform.rotation.w = 1;
     
-    tf_broadcaster.sendTransform(ref_T_spot);
- 
     return true;
 }
 
@@ -162,7 +163,6 @@ void Laser3DTracking::cloudClbk(const PointCloud::ConstPtr& msg)
 void Laser3DTracking::keypointSubClbk(const tpo_msgs::KeypointImageConstPtr& msg)
 {
     keypoint_image = *msg;
-    wait_for_new_detection = false;
 }
 
 

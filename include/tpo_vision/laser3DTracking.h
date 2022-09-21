@@ -46,8 +46,8 @@ private:
     std::string ref_frame ;
     std::string laser_spot_frame;
     
-    double detection_confidence_threshold, cloud_detection_max_sec_diff;
-    bool wait_for_new_detection = true;
+    double detection_confidence_threshold;
+    double cloud_detection_max_sec_diff;
     ros::Subscriber keypoint_sub;
     void keypointSubClbk(const tpo_msgs::KeypointImageConstPtr& msg);
     tpo_msgs::KeypointImage keypoint_image;
@@ -65,6 +65,7 @@ private:
     /***************************************************** */
 
     bool sendTransformFrom2D();
+    bool updateTransform();
 
 };
 
