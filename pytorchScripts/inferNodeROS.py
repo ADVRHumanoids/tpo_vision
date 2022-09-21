@@ -74,7 +74,6 @@ class DetectorManager():
         #self.cam_info = getCameraInfo.cam_info
         
         model_name = rospy.get_param('~model_name', 'model1.pt')
-        self.threshold = rospy.get_param('~inference_threshold', 0.3)
         
         ############ PYTHORCH STUFF
         model_path = os.path.join(rospkg.RosPack().get_path('tpo_vision'), "../../learningStuff", model_name)
@@ -171,12 +170,6 @@ class DetectorManager():
             rospy.logwarn("no detection found at all (len is 0)")
             self.__pubROS()
             return False
-        
-        if (max(out['scores']) < self.threshold):
-            rospy.logwarn("no detection found under the threshold %s", self.threshold)
-            self.__pubROS()
-            return False
-        
         
         #IDK if the best box is always the first one, so lets the argmax
         best_index = torch.argmax(out['scores'])
