@@ -20,7 +20,7 @@
     <arg name="ref_frame" default="$(arg camera)_color_optical_frame" />
     <arg name="camera_frame" default="$(arg camera)_color_optical_frame" />
     
-    <arg name="detection_confidence_threshold" default="0.0" />
+    <arg name="detection_confidence_threshold" default="0.25" />
     <arg name="cloud_detection_max_sec_diff" default="5" />
     
     <arg name="keypoint_topic" default="/detection_output_keypoint" />

@@ -86,13 +86,15 @@ private:
 
     //phases methods
     bool filterOnZaxis();
-    bool extractPlaneAndObjects(bool publishPlane, bool publishObjectsOnTable);
-    bool clusterExtraction(bool publishSingleObjCloud);
+    bool publishPlane, publishObjectsOnTable, publishSingleObjCloud;
+    bool extractPlaneAndObjects();
+    bool clusterExtraction();
     std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> cloud_clusters;
     unsigned int n_clusters = 0;
-    unsigned int max_clusters = 10;
-    geometry_msgs::Transform momentOfInertia(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, 
-                                             double* x_size = nullptr, double* y_size = nullptr, double* z_size = nullptr);
+    int max_clusters;
+    bool publishSingleObjTF;
+    bool publishSingleObjBoundingBox;
+    void momentOfInertia(const int id, pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
     
     PointCloud::Ptr cloud;  
     PointCloud::Ptr cloud_plane;  
@@ -100,19 +102,10 @@ private:
     
     pcl::visualization::PCLVisualizer::Ptr viewer;
     
-    /***************************************************** */
-    ros::Subscriber camera_info_sub;
-    void cameraInfoClbk(const sensor_msgs::CameraInfoConstPtr& msg);
-    sensor_msgs::CameraInfo cam_info;
-    cv::Mat disp2Depth; //the Q required for reprojectImageTo3D, built from cam param
-    
-    ros::Subscriber depth_image_sub;
-    void depthImageClbk(const sensor_msgs::ImageConstPtr& msg);
-    cv_bridge::CvImage cv_bridge_image;
-    public: bool extractSinglePointFrom2D(int pixel_x, int pixel_y);
-    
     ros::Publisher tmp_pub;
 
 };
+
+
 
 #endif // PLANARSEGMENTATIONNODE_H

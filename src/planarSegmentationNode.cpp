@@ -20,16 +20,32 @@ PlanarSegmentation::PlanarSegmentation (ros::NodeHandle* nh) {
     
     this->nh = nh;
     
+    nh->param<int>("max_clusters", max_clusters, 10);
+    nh->param<bool>("publishPlane", publishPlane, true);
+    nh->param<bool>("publishObjectsOnTable", publishObjectsOnTable, true);
+    nh->param<bool>("publishSingleObjCloud", publishSingleObjCloud, true);
+    nh->param<bool>("publishSingleObjTF", publishSingleObjTF, true);
+    nh->param<bool>("publishSingleObjBoundingBox", publishSingleObjBoundingBox, true);
+
     tf_listener = std::make_unique<tf2_ros::TransformListener>(tf_buffer);
     
     cloud_sub = nh->subscribe<PointCloud>("/D435_head_camera/depth/color/points", 1, &PlanarSegmentation::cloudClbk, this);
     
-    cloud_plane_pub = nh->advertise<PointCloud>("cloud_plane", 1);
-    cloud_objects_pub = nh->advertise<PointCloud>("cloud_objects", 1);
-    cloud_tmp_pub.resize(3);
-    for (int i=0; i<3; i++) {
-        cloud_tmp_pub.at(i) = nh->advertise<PointCloud>("cloud_tmp_"+ std::to_string(i), 1);
+    if (publishPlane) { 
+        cloud_plane_pub = nh->advertise<PointCloud>("cloud_plane", 1);
     }
+    
+    if (publishObjectsOnTable) {
+        cloud_objects_pub = nh->advertise<PointCloud>("cloud_objects", 1);
+    }
+    
+    if (publishSingleObjCloud) {
+        cloud_tmp_pub.resize(max_clusters);
+        for (int i=0; i<max_clusters; i++) {
+            cloud_tmp_pub.at(i) = nh->advertise<PointCloud>("cloud_tmp_"+ std::to_string(i), 1);
+        }
+    }
+    
     cloud_clusters.resize(max_clusters); //max cluster we detect
     for (int i=0; i<cloud_clusters.size(); i++) {
         cloud_clusters.at(i) = boost::make_shared<PointCloud>();
@@ -44,14 +60,11 @@ PlanarSegmentation::PlanarSegmentation (ros::NodeHandle* nh) {
 //     viewer->addCoordinateSystem (1.0);
 //     viewer->initCameraParameters ();
     
-    //marker pub for bounding boxes of objects
-    marker_pub = nh->advertise<visualization_msgs::MarkerArray>("objects_bounding", 1);
+    if (publishSingleObjBoundingBox){
+        marker_pub = nh->advertise<visualization_msgs::MarkerArray>("objects_bounding", 1);
+    }
     
-    /******************* ***************************/
-    camera_info_sub = nh->subscribe<sensor_msgs::CameraInfo>("/D435_head_camera/aligned_depth_to_color/camera_info", 1, &PlanarSegmentation::cameraInfoClbk, this);
- 
-    depth_image_sub = nh->subscribe<sensor_msgs::Image>("/D435_head_camera/aligned_depth_to_color/image_raw", 1, &PlanarSegmentation::depthImageClbk, this);
-    
+    //for some debug
     tmp_pub = nh->advertise<sensor_msgs::Image>("/image_trial",1);
 
 }
@@ -89,32 +102,27 @@ int PlanarSegmentation::run () {
 
     filterOnZaxis();
     
-    bool publishPlane = true;
-    bool publishObjectsOnTable = true;  
-    extractPlaneAndObjects(publishPlane, publishObjectsOnTable);
+    extractPlaneAndObjects();
 
     //Euclidean Cluster Extraction, to divide each box
-    bool publishSingleObjCloud = true;
-    clusterExtraction(publishSingleObjCloud);
+    clusterExtraction();
     
-    markerArrayMsg.markers.clear();
-    //moment of inertia
-    for (int i=0; i<n_clusters; i++) {
-        geometry_msgs::TransformStamped tf;
-        double x, y, z;
-        tf.transform = momentOfInertia(cloud_clusters.at(i), &x, &y, &z);
-        tf.header.frame_id = ref_frame;
-        tf.child_frame_id = "box_" + std::to_string(i);
-        tf.header.stamp = ros::Time::now();
-        
-        tf_broadcaster.sendTransform(tf);
-        
-        addBoundingBoxMarker(i, tf.child_frame_id, x, y, z);
-
+    if (publishSingleObjBoundingBox)
+    {  
+        markerArrayMsg.markers.clear();
     }
     
-    marker_pub.publish(markerArrayMsg);
-
+    //moment of inertia
+    for (int i=0; i<n_clusters; i++) {
+        
+        momentOfInertia(i, cloud_clusters.at(i));
+    }
+    
+    if (publishSingleObjBoundingBox)
+    {   
+        marker_pub.publish(markerArrayMsg);
+    }
+    
     return 0;
 }
 
@@ -132,7 +140,7 @@ bool PlanarSegmentation::filterOnZaxis() {
     return true;
 }
 
-bool PlanarSegmentation::extractPlaneAndObjects(bool publishPlane, bool publishObjectsOnTable) {
+bool PlanarSegmentation::extractPlaneAndObjects() {
     
     pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
     pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
@@ -211,7 +219,7 @@ bool PlanarSegmentation::extractPlaneAndObjects(bool publishPlane, bool publishO
     return true;
 }
 
-bool PlanarSegmentation::clusterExtraction(bool publishSingleObjCloud){
+bool PlanarSegmentation::clusterExtraction(){
  
     // Create the filtering object: downsample the dataset using a leaf size of 1cm
     pcl::VoxelGrid<pcl::PointXYZ> vg;
@@ -307,9 +315,7 @@ bool PlanarSegmentation::clusterExtraction(bool publishSingleObjCloud){
     return true;
 }
 
-geometry_msgs::Transform PlanarSegmentation::momentOfInertia(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, double* x_size, double* y_size, double* z_size) {
-    
-    geometry_msgs::Transform tf;
+void PlanarSegmentation::momentOfInertia(const int id, pcl::PointCloud<pcl::PointXYZ>::Ptr cloud) {
     
     pcl::MomentOfInertiaEstimation <pcl::PointXYZ> feature_extractor;
     feature_extractor.setInputCloud (cloud);
@@ -339,8 +345,8 @@ geometry_msgs::Transform PlanarSegmentation::momentOfInertia(pcl::PointCloud<pcl
 //     viewer->addCube (min_point_AABB.x, max_point_AABB.x, min_point_AABB.y, max_point_AABB.y, min_point_AABB.z, max_point_AABB.z, 1.0, 1.0, 0.0, "AABB");
 //     viewer->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_REPRESENTATION, pcl::visualization::PCL_VISUALIZER_REPRESENTATION_WIREFRAME, "AABB");
 
-    Eigen::Vector3f position (position_OBB.x, position_OBB.y, position_OBB.z);
-    Eigen::Quaternionf quat (rotational_matrix_OBB);
+//    Eigen::Vector3f position (position_OBB.x, position_OBB.y, position_OBB.z);
+//    Eigen::Quaternionf quat (rotational_matrix_OBB);
 //     viewer->addCube (position, quat, max_point_OBB.x - min_point_OBB.x, max_point_OBB.y - min_point_OBB.y, max_point_OBB.z - min_point_OBB.z, "OBB");
 //     viewer->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_REPRESENTATION, pcl::visualization::PCL_VISUALIZER_REPRESENTATION_WIREFRAME, "OBB");
 
@@ -353,27 +359,45 @@ geometry_msgs::Transform PlanarSegmentation::momentOfInertia(pcl::PointCloud<pcl
 //     viewer->addLine (center, z_axis, 0.0f, 0.0f, 1.0f, "minor eigen vector");
 
  //   viewer->spinOnce (100);
+    
+    if (publishSingleObjTF) {
         
-    tf.translation.x = 0.5 * (max_point_AABB.x + min_point_AABB.x);
-    tf.translation.y = 0.5 * (max_point_AABB.y + min_point_AABB.y);
-    tf.translation.z = 0.5 * (max_point_AABB.z + min_point_AABB.z);
-    
-//     tf.rotation.x = quat.x();
-//     tf.rotation.y = quat.y();
-//     tf.rotation.z = quat.z();
-//     tf.rotation.w = quat.w();
-    tf.rotation.x = 0;
-    tf.rotation.y = 0;
-    tf.rotation.z = 0;
-    tf.rotation.w = 1;
-    
-    if (x_size != nullptr && y_size != nullptr && z_size!= nullptr) {
-        *x_size = max_point_AABB.x - min_point_AABB.x;
-        *y_size = max_point_AABB.y - min_point_AABB.y;
-        *z_size = max_point_AABB.z - min_point_AABB.z;
+        geometry_msgs::TransformStamped tf;
+        
+        tf.header.frame_id = ref_frame;
+        tf.child_frame_id = "box_cloud_" + std::to_string(id);
+        tf.header.stamp = ros::Time::now();
+            
+        tf.transform.translation.x = 0.5 * (max_point_AABB.x + min_point_AABB.x);
+        tf.transform.translation.y = 0.5 * (max_point_AABB.y + min_point_AABB.y);
+        tf.transform.translation.z = 0.5 * (max_point_AABB.z + min_point_AABB.z);
+        
+    //     tf.rotation.x = quat.x();
+    //     tf.rotation.y = quat.y();
+    //     tf.rotation.z = quat.z();
+    //     tf.rotation.w = quat.w();
+        tf.transform.rotation.x = 0;
+        tf.transform.rotation.y = 0;
+        tf.transform.rotation.z = 0;
+        tf.transform.rotation.w = 1;
+        
+        tf_broadcaster.sendTransform(tf);
+        
     }
         
-    return tf;
+    
+    if (publishSingleObjBoundingBox) {
+        
+        double x_size, y_size, z_size;
+        
+        x_size = max_point_AABB.x - min_point_AABB.x;
+        y_size = max_point_AABB.y - min_point_AABB.y;
+        z_size = max_point_AABB.z - min_point_AABB.z;
+    
+        addBoundingBoxMarker(id, "box_cloud_" + std::to_string(id), x_size, y_size, z_size);
+        
+        
+    }
 }
 
 void PlanarSegmentation::addBoundingBoxMarker(unsigned int id, std::string frame_id, double x, double y, double z) {
@@ -428,115 +452,7 @@ void PlanarSegmentation::getTransforms()
 
 
 /******************************** *****************************************/
-void PlanarSegmentation::cameraInfoClbk(const sensor_msgs::CameraInfoConstPtr& msg) {
-    
-    cam_info = *msg;
-    
-    disp2Depth = cv::Mat::zeros(4, 4, CV_64FC1);
-    
-    disp2Depth.at<double>(0,0) = 1;
-    disp2Depth.at<double>(1,1) = 1;
-    
-//     disp2Depth.at<double>(0,3) = - msg->K.at(3); //K is stored row-major
-//     disp2Depth.at<double>(1,3) = - msg->K.at(5); //K is stored row-major
-//     disp2Depth.at<double>(2,3) = - msg->K.at(0); //fx is the same of fy???
-    
-     //P is stored row-major
-    disp2Depth.at<double>(0,3) = - msg->K.at(2); //cx
-    disp2Depth.at<double>(1,3) = - msg->P.at(5); //cy
-    disp2Depth.at<double>(2,3) = - msg->P.at(0); //fx is the same of fy???
-    
-    disp2Depth.at<double>(2,3) = - 1.0 / (msg->P.at(3)); // -1/Tx
-    disp2Depth.at<double>(2,3) = - 1.0 / (msg->P.at(3)); //(cx - cx') / Tx
-    
-    camera_info_sub.shutdown();
-}
 
-void PlanarSegmentation::depthImageClbk(const sensor_msgs::ImageConstPtr& msg) {
-    
-    cv::Mat im;
-    
-    try
-    {
-        //original is CV_16U but, reprojectImageTo3D does not accept this, 
-        //instead it accepts only  CV_8UC1 CV_16SC1 CV_32SC1 CV_32FC1
-        //so we convert to CV_16SC1
-        cv_bridge_image = *(cv_bridge::toCvShare(msg, sensor_msgs::image_encodings::TYPE_16UC1));
-       // im = cv::Mat(msg->height, msg->width, CV_16SC1);
-        im = cv::Mat(msg->height, msg->width, CV_16SC1, const_cast<uchar*>(&msg->data[0]), msg->step);
-        cv::Point pt1 = cv::Point(986, 145);
-        cv::circle(im, pt1, 0, cv::Scalar(0, 255, 0), 100, 8);
-        
-        //auto point = cloud->at(986, 145);
-
-    }
-    catch (cv_bridge::Exception& e)
-    {
-        ROS_ERROR("cv_bridge exception: %s", e.what());
-        return;
-    }
-    
-//     cv_bridge::CvImage trial_img(msg->header, msg->encoding, cv_bridge_image.image);
-//     
-//     tmp_pub.publish(trial_img);
-//     
-//     cv::imshow("Frame", im);
-//     cv::waitKey(0);
-    
-}
-
-bool PlanarSegmentation::extractSinglePointFrom2D(int pixel_x, int pixel_y) {
-    
-//     std::cout << cam_param << std::endl;
-    
-    if (cv_bridge_image.image.empty()) {
-        std::cout << "image not yet arrived and/or is empty" << std::endl;
-        return false;
-    }
-
-//     if (cam_param.empty()) {
-//         std::cout << "cam param not yet arrived and/or is empty" << std::endl;
-//         return false;
-//     }
-//     
-    
-//     cv::Mat cv_image_3d(cv_bridge_image.image.size().width, cv_bridge_image.image.size().height, cv_bridge_image.image.type());
-//     std::cout << "projecting" << std::endl;
-//     cv::reprojectImageTo3D(cv_bridge_image.image, cv_image_3d, cam_param, true);
-//     std::cout << "3d image is size: " << cv_image_3d.size() << std::endl;
-// 
-//     std::cout << "POINT: " << cv_image_3d.at<cv::Point3d>(pixel_x, pixel_y) << std::endl;
-
-    double depth_value = cv_bridge_image.image.at<double>(pixel_x,pixel_y);
-    double cx, cy, fx, fy;
-    cx = cam_info.K.at(2);
-    cy = cam_info.K.at(5);
-    fx = cam_info.K.at(0);
-    fy = cam_info.K.at(4);
-    double x = (pixel_x - cx) * depth_value / fx;
-    double y = (pixel_y - cy) * depth_value / fy;
-    double z = depth_value;
-    
-    std::cout << "c " << cx << " " << cy << std::endl;
-    std::cout << "f " << fx << " " << fy << std::endl;
-    std::cout << "depth_value " << depth_value << std::endl;
-    std::cout << "x y z " << x << " " << y << " " << z << std::endl;
-    
-    geometry_msgs::TransformStamped t;
-    t.header.frame_id = "D435_head_camera_color_optical_frame";
-    t.header.stamp = ros::Time::now();
-    t.child_frame_id = "laser_point";
-    
-    t.transform.translation.x = cloud->at(651, 217).x;
-    t.transform.translation.y = cloud->at(651, 217).y;
-    t.transform.translation.z = cloud->at(651, 217).z;
-    
-    t.transform.rotation.w = 1;
-    
-    tf_broadcaster.sendTransform(t);
- 
-    return true;
-}
 
 
 /******************************** *****************************************/
@@ -551,9 +467,8 @@ int main ( int argc, char **argv ) {
     ros::Rate r(10);
     while(ros::ok()) {
         
-        //planarSegmentation.getTransforms();
-       //planarSegmentation.run();
-        planarSegmentation.extractSinglePointFrom2D(651, 217);
+       planarSegmentation.getTransforms();
+       planarSegmentation.run();
 
 
         ros::spinOnce();

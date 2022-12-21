@@ -101,6 +101,12 @@ target_link_libraries(${PROJECT_NAME}_planarSegmentationNode
     ${OpenCV_LIBS}
 )
 
+add_executable(${PROJECT_NAME}_ExtractSinglePointFrom2D src/ExtractSinglePointFrom2D.cpp)
+set_target_properties(${PROJECT_NAME}_ExtractSinglePointFrom2D PROPERTIES OUTPUT_NAME extractSinglePointFrom2D PREFIX "")
+target_link_libraries(${PROJECT_NAME}_ExtractSinglePointFrom2D
+    ${catkin_LIBRARIES}
+)
+
 
 add_executable(${PROJECT_NAME}_laser3DTracking src/laser3DTracking.cpp)
 set_target_properties(${PROJECT_NAME}_laser3DTracking PROPERTIES OUTPUT_NAME laser3DTracking PREFIX "")
