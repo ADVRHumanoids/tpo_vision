@@ -17,6 +17,7 @@ find_package(catkin REQUIRED COMPONENTS
     cv_bridge
     dynamic_reconfigure
     image_transport
+    tpo_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -115,6 +116,7 @@ target_link_libraries(${PROJECT_NAME}_laser3DTracking
     pcl_visualization
     ${OpenCV_LIBS}
 )
+add_dependencies(${PROJECT_NAME}_laser3DTracking tpo_msgs_generate_messages_cpp)
 
 add_executable(${PROJECT_NAME}_laserSpotDetection src/laserSpotDetection.cpp)
 set_target_properties(${PROJECT_NAME}_laserSpotDetection PROPERTIES OUTPUT_NAME laserSpotDetection PREFIX "")

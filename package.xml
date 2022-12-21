@@ -41,6 +41,7 @@
   <depend>cv_bridge</depend>
   <depend>dynamic_reconfigure</depend>
   <depend>image_transport</depend>
+  <depend>tpo_msgs</depend>
   <!--   Note that this is equivalent to the following: -->
   <!--   <build_depend>roscpp</build_depend> -->
   <!--   <exec_depend>roscpp</exec_depend> -->
