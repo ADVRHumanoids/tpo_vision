@@ -48,7 +48,6 @@
 
 #include <pcl/visualization/cloud_viewer.h> //to see the cloud, just for debug
 
-
 typedef pcl::PointCloud<pcl::PointXYZ> PointCloud;
 
 class PlanarSegmentation {

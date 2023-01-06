@@ -65,7 +65,7 @@ PlanarSegmentation::PlanarSegmentation (ros::NodeHandle* nh) {
     }
     
     //for some debug
-    tmp_pub = nh->advertise<sensor_msgs::Image>("/image_trial",1);
+    //tmp_pub = nh->advertise<sensor_msgs::Image>("/image_trial",1);
 
 }
 
@@ -346,7 +346,14 @@ void PlanarSegmentation::momentOfInertia(const int id, pcl::PointCloud<pcl::Poin
 //     viewer->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_REPRESENTATION, pcl::visualization::PCL_VISUALIZER_REPRESENTATION_WIREFRAME, "AABB");
 
 //    Eigen::Vector3f position (position_OBB.x, position_OBB.y, position_OBB.z);
-//    Eigen::Quaternionf quat (rotational_matrix_OBB);
+    
+//     std::cout << "rot:\n" <<
+//         rotational_matrix_OBB  << std::endl;
+    
+    Eigen::Quaternionf quat (rotational_matrix_OBB);
+    
+//     std::cout << "quat:\n" <<
+//         quat.x() << " " << quat.y() << " " << quat.z() << " " << quat.w()  << std::endl;
 //     viewer->addCube (position, quat, max_point_OBB.x - min_point_OBB.x, max_point_OBB.y - min_point_OBB.y, max_point_OBB.z - min_point_OBB.z, "OBB");
 //     viewer->setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_REPRESENTATION, pcl::visualization::PCL_VISUALIZER_REPRESENTATION_WIREFRAME, "OBB");
 
@@ -364,22 +371,32 @@ void PlanarSegmentation::momentOfInertia(const int id, pcl::PointCloud<pcl::Poin
         
         geometry_msgs::TransformStamped tf;
         
-        tf.header.frame_id = ref_frame;
+        //tf.header.frame_id = ref_frame;
         tf.child_frame_id = "box_cloud_" + std::to_string(id);
         tf.header.stamp = ros::Time::now();
             
-        tf.transform.translation.x = 0.5 * (max_point_AABB.x + min_point_AABB.x);
-        tf.transform.translation.y = 0.5 * (max_point_AABB.y + min_point_AABB.y);
-        tf.transform.translation.z = 0.5 * (max_point_AABB.z + min_point_AABB.z);
+        //AABB version
+//         tf.header.frame_id = ref_frame;
+//         tf.transform.translation.x = 0.5 * (max_point_AABB.x + min_point_AABB.x);
+//         tf.transform.translation.y = 0.5 * (max_point_AABB.y + min_point_AABB.y);
+//         tf.transform.translation.z = 0.5 * (max_point_AABB.z + min_point_AABB.z);
+//         tf.transform.rotation.x = 0;
+//         tf.transform.rotation.y = 0;
+//         tf.transform.rotation.z = 0;
+//         tf.transform.rotation.w = 1;
+ 
+        //OBB version
+        tf.header.frame_id = cloud->header.frame_id;
+
+        tf.transform.translation.x = mass_center (0); 
+        tf.transform.translation.y = mass_center (1);
+        tf.transform.translation.z = mass_center (2);
         
-    //     tf.rotation.x = quat.x();
-    //     tf.rotation.y = quat.y();
-    //     tf.rotation.z = quat.z();
-    //     tf.rotation.w = quat.w();
-        tf.transform.rotation.x = 0;
-        tf.transform.rotation.y = 0;
-        tf.transform.rotation.z = 0;
-        tf.transform.rotation.w = 1;
+        quat.normalize();
+        tf.transform.rotation.x = quat.x();
+        tf.transform.rotation.y = quat.y();
+        tf.transform.rotation.z = quat.z();
+        tf.transform.rotation.w = quat.w();
         
         tf_broadcaster.sendTransform(tf);
         
@@ -388,14 +405,39 @@ void PlanarSegmentation::momentOfInertia(const int id, pcl::PointCloud<pcl::Poin
     
     if (publishSingleObjBoundingBox) {
         
-        double x_size, y_size, z_size;
+        //AABB version
+//         double x_size, y_size, z_size;
+//         
+//         x_size = max_point_AABB.x - min_point_AABB.x;
+//         y_size = max_point_AABB.y - min_point_AABB.y;
+//         z_size = max_point_AABB.z - min_point_AABB.z;
+//     
+//         addBoundingBoxMarker(id, "box_cloud_" + std::to_string(id), x_size, y_size, z_size);
         
-        x_size = max_point_AABB.x - min_point_AABB.x;
-        y_size = max_point_AABB.y - min_point_AABB.y;
-        z_size = max_point_AABB.z - min_point_AABB.z;
-    
-        addBoundingBoxMarker(id, "box_cloud_" + std::to_string(id), x_size, y_size, z_size);
+        //OBB version
+        visualization_msgs::Marker marker;
+        marker.header.frame_id = cloud->header.frame_id;
+        marker.header.stamp = ros::Time();
+        marker.ns = "bounding_boxes";
+        marker.id = id;
+        marker.type = visualization_msgs::Marker::CUBE;
+        marker.action = visualization_msgs::Marker::ADD;
+        marker.pose.position.x = mass_center (0); ;
+        marker.pose.position.y = mass_center (1); ;
+        marker.pose.position.z = mass_center (2); ;
+        marker.pose.orientation.x = quat.x();
+        marker.pose.orientation.y = quat.y();
+        marker.pose.orientation.z = quat.z();
+        marker.pose.orientation.w = quat.w();
+        marker.scale.x = max_point_OBB.x - min_point_OBB.x;
+        marker.scale.y = max_point_OBB.y - min_point_OBB.y;
+        marker.scale.z = max_point_OBB.z - min_point_OBB.z;
+        marker.color.a = 0.3; // Don't forget to set the alpha!
+        marker.color.r = 1.0;
+        marker.color.g = 0.0;
+        marker.color.b = 0.0;
         
+        markerArrayMsg.markers.push_back(marker);
         
     }
 }

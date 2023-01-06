@@ -94,9 +94,9 @@ include_directories(
 ## The recommended prefix ensures that target names across packages don't collide
 ## add_executable(${PROJECT_NAME}_node src/tpo_vision_node.cpp)
 
-add_executable(${PROJECT_NAME}_planarSegmentationNode src/planarSegmentationNode.cpp)
-set_target_properties(${PROJECT_NAME}_planarSegmentationNode PROPERTIES OUTPUT_NAME planarSegmentation PREFIX "")
-target_link_libraries(${PROJECT_NAME}_planarSegmentationNode
+add_executable(${PROJECT_NAME}_objectClusterExtractor src/ObjectClusterExtractor.cpp)
+set_target_properties(${PROJECT_NAME}_objectClusterExtractor PROPERTIES OUTPUT_NAME objectClusterExtractor PREFIX "")
+target_link_libraries(${PROJECT_NAME}_objectClusterExtractor
     ${catkin_LIBRARIES}
     pcl_visualization
     ${OpenCV_LIBS}

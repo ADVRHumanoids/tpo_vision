@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<launch>
+
+    <arg name="max_clusters" default="10"/>
+    <arg name="publishPlane" default="true"/>
+    <arg name="publishObjectsOnTable" default="true"/>
+    <arg name="publishSingleObjCloud" default="true"/>
+    <arg name="publishSingleObjTF" default="true"/>
+    <arg name="publishSingleObjBoundingBox" default="true"/>
+
+
+    <node pkg="tpo_vision" name="planarSegmentation"
+        type="planarSegmentation" output="screen" respawn="false">
+        
+        <param name="max_clusters" value="$(arg max_clusters)"/>
+        <param name="publishPlane" value="$(arg publishPlane)"/>
+        <param name="publishObjectsOnTable" value="$(arg publishObjectsOnTable)"/>
+        <param name="publishSingleObjCloud" value="$(arg publishSingleObjCloud)"/>
+        <param name="publishSingleObjTF" value="$(arg publishSingleObjTF)"/>
+        <param name="publishSingleObjBoundingBox" value="$(arg publishSingleObjBoundingBox)"/>
+        
+    </node>
+    
+</launch>
