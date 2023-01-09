@@ -2,7 +2,6 @@
 *.kdev4
 *.kate-swp
 *.pt
-*.png
 pytorchScripts/data/*
 opencvScripts/*.caffemodel
 opencvScripts/*.prototxt
