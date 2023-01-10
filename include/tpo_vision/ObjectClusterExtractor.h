@@ -58,10 +58,13 @@ public:
         
         Surface, //eg table 
         Object,  //object graspable with a single end effector
-        BigObject, // bigger object where small object can be put above/inside, maybe graspable with two arms?
+        Container, // bigger object where small object can be put above/inside, maybe graspable with two arms?
+        None,
     };
     
     ObjectCluster();
+    
+    Type _type;
     
     PointCloud::Ptr _cloud;
     
@@ -73,21 +76,29 @@ public:
     void fillMarkerAABB(unsigned id);
     void fillTransformAABB(unsigned id);
     
+    bool fillTransformGoal();
+    
     visualization_msgs::Marker _marker;
     geometry_msgs::TransformStamped _ref_T_cloud;
+    geometry_msgs::TransformStamped _ref_T_goal;
     
     bool findPoint(Point searchPoint, float radius = 0.03);
+    
+    bool categorizeCluster();
+    
+    
 
 public: //public here for trials. then put private
     
     pcl::MomentOfInertiaEstimation <Point> _feature_extractor;
-    pcl::PointXYZ min_point_AABB;
-    pcl::PointXYZ max_point_AABB;
-    pcl::PointXYZ min_point_OBB;
-    pcl::PointXYZ max_point_OBB;
-    pcl::PointXYZ position_OBB;
-    Eigen::Matrix3f rotational_matrix_OBB;
-    Eigen::Vector3f mass_center;
+    pcl::PointXYZ _min_point_AABB;
+    pcl::PointXYZ _max_point_AABB;
+    pcl::PointXYZ _min_point_OBB;
+    pcl::PointXYZ _max_point_OBB;
+    pcl::PointXYZ _position_OBB;
+    double _size_x, _size_y, _size_z;
+    Eigen::Matrix3f _rotational_matrix_OBB;
+    Eigen::Vector3f _mass_center;
     
     pcl::KdTreeFLANN<Point> _kdtree;
     std::vector<int> _point_idx_found; //to store index of surrounding points 
@@ -119,7 +130,7 @@ private:
     std::unique_ptr<tf2_ros::TransformListener> tf_listener;
     geometry_msgs::TransformStamped cam_T_pelvis;
     geometry_msgs::TransformStamped pelvis_T_wheel;
-    geometry_msgs::TransformStamped refcloud_T_goal;
+    geometry_msgs::TransformStamped refcloud_T_laser;
     double pelvis_high = 0;
 
     ros::Subscriber cloud_sub;
@@ -151,6 +162,10 @@ private:
     pcl::visualization::PCLVisualizer::Ptr viewer;
     
     ros::Publisher tmp_pub;
+    
+    bool goal_to_send = false;
+    geometry_msgs::TransformStamped goal_transf_msg;
+
 
 };
 

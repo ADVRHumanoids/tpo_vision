@@ -79,6 +79,9 @@
             
         </node>
     </group>
+    
+    <include file="$(find tpo_vision)/launch/objectClusterExtractor.launch">>
+    </include>
 
         
     <node if="$(arg rviz)" type="rviz" name="rviz" pkg="rviz" args="-d $(find tpo_vision)/config/rviz/tpoLaser.rviz" >

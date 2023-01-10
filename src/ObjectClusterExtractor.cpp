@@ -32,6 +32,8 @@ ObjectCluster::ObjectCluster() {
     
     _kdtree.setSortedResults (true);
     _selected_cluster = false;
+    
+    _type = ObjectCluster::Type::None;
 
 }
 
@@ -41,30 +43,34 @@ bool ObjectCluster::momentOfInertiaOBB() {
     _feature_extractor.compute ();
 
     bool ret_value = true;
-    ret_value = (ret_value && _feature_extractor.getOBB (min_point_OBB, max_point_OBB, position_OBB, rotational_matrix_OBB));
-    ret_value = (ret_value && _feature_extractor.getMassCenter (mass_center));
+    ret_value = (ret_value && _feature_extractor.getOBB (_min_point_OBB, _max_point_OBB, _position_OBB, _rotational_matrix_OBB));
+    ret_value = (ret_value && _feature_extractor.getMassCenter (_mass_center));
+    
+    _size_x = std::abs(_max_point_OBB.x - _min_point_OBB.x);
+    _size_y = std::abs(_max_point_OBB.y - _min_point_OBB.y);
+    _size_z = std::abs(_max_point_OBB.z - _min_point_OBB.z);
         
     return ret_value;
 }
 
 void ObjectCluster::fillMarkerOBB(unsigned id) {
     
-    Eigen::Quaternionf quat (rotational_matrix_OBB);
+    Eigen::Quaternionf quat (_rotational_matrix_OBB);
     quat.normalize();
     
     _marker.id = id;
     _marker.header.frame_id = _cloud->header.frame_id;
     _marker.header.stamp = ros::Time();
-    _marker.pose.position.x = mass_center (0); ;
-    _marker.pose.position.y = mass_center (1); ;
-    _marker.pose.position.z = mass_center (2); ;
+    _marker.pose.position.x = _mass_center (0); ;
+    _marker.pose.position.y = _mass_center (1); ;
+    _marker.pose.position.z = _mass_center (2); ;
     _marker.pose.orientation.x = quat.x();
     _marker.pose.orientation.y = quat.y();
     _marker.pose.orientation.z = quat.z();
     _marker.pose.orientation.w = quat.w();
-    _marker.scale.x = max_point_OBB.x - min_point_OBB.x;
-    _marker.scale.y = max_point_OBB.y - min_point_OBB.y;
-    _marker.scale.z = max_point_OBB.z - min_point_OBB.z;
+    _marker.scale.x = _size_x;
+    _marker.scale.y = _size_y;
+    _marker.scale.z = _size_z;
     
 }
 
@@ -74,11 +80,11 @@ void ObjectCluster::fillTransformOBB(unsigned id) {
     _ref_T_cloud.header.frame_id = _cloud->header.frame_id;
     _ref_T_cloud.child_frame_id = "box_cloud_" + std::to_string(id);
 
-    _ref_T_cloud.transform.translation.x = mass_center (0); 
-    _ref_T_cloud.transform.translation.y = mass_center (1);
-    _ref_T_cloud.transform.translation.z = mass_center (2);
+    _ref_T_cloud.transform.translation.x = _mass_center (0); 
+    _ref_T_cloud.transform.translation.y = _mass_center (1);
+    _ref_T_cloud.transform.translation.z = _mass_center (2);
     
-    Eigen::Quaternionf quat (rotational_matrix_OBB);
+    Eigen::Quaternionf quat (_rotational_matrix_OBB);
     quat.normalize();
     _ref_T_cloud.transform.rotation.x = quat.x();
     _ref_T_cloud.transform.rotation.y = quat.y();
@@ -93,9 +99,12 @@ bool ObjectCluster::momentOfInertiaAABB() {
     _feature_extractor.compute ();
 
     bool ret_value = true;
-    ret_value = (ret_value && _feature_extractor.getAABB (min_point_AABB, max_point_AABB));
-    ret_value = (ret_value && _feature_extractor.getOBB (min_point_OBB, max_point_OBB, position_OBB, rotational_matrix_OBB));    
-
+    ret_value = (ret_value && _feature_extractor.getAABB (_min_point_AABB, _max_point_AABB));
+    
+    _size_x = std::abs(_max_point_AABB.x - _min_point_AABB.x);
+    _size_y = std::abs(_max_point_AABB.y - _min_point_AABB.y);
+    _size_z = std::abs(_max_point_AABB.z - _min_point_AABB.z);
+    
     return ret_value;
 }
 
@@ -105,13 +114,13 @@ void ObjectCluster::fillMarkerAABB(unsigned id) {
     _marker.header.frame_id = _cloud->header.frame_id;
     _marker.header.stamp = ros::Time();
 
-    _marker.scale.x = max_point_AABB.x - min_point_AABB.x;
-    _marker.scale.y = max_point_AABB.y - min_point_AABB.y;
-    _marker.scale.z = max_point_AABB.z - min_point_AABB.z;
+    _marker.scale.x = _size_x;
+    _marker.scale.y = _size_y;
+    _marker.scale.z = _size_z;
     
-    _marker.pose.position.x = 0.5 * (max_point_AABB.x + min_point_AABB.x);
-    _marker.pose.position.y = 0.5 * (max_point_AABB.y + min_point_AABB.y);
-    _marker.pose.position.z = 0.5 * (max_point_AABB.z + min_point_AABB.z);
+    _marker.pose.position.x = 0.5 * (_max_point_AABB.x + _min_point_AABB.x);
+    _marker.pose.position.y = 0.5 * (_max_point_AABB.y + _min_point_AABB.y);
+    _marker.pose.position.z = 0.5 * (_max_point_AABB.z + _min_point_AABB.z);
     
 }
 
@@ -122,14 +131,42 @@ void ObjectCluster::fillTransformAABB(unsigned id) {
     _ref_T_cloud.header.stamp = ros::Time::now();
         
     _ref_T_cloud.header.frame_id = _cloud->header.frame_id;
-    _ref_T_cloud.transform.translation.x = 0.5 * (max_point_AABB.x + min_point_AABB.x);
-    _ref_T_cloud.transform.translation.y = 0.5 * (max_point_AABB.y + min_point_AABB.y);
-    _ref_T_cloud.transform.translation.z = 0.5 * (max_point_AABB.z + min_point_AABB.z);
+    _ref_T_cloud.transform.translation.x = 0.5 * (_max_point_AABB.x + _min_point_AABB.x);
+    _ref_T_cloud.transform.translation.y = 0.5 * (_max_point_AABB.y + _min_point_AABB.y);
+    _ref_T_cloud.transform.translation.z = 0.5 * (_max_point_AABB.z + _min_point_AABB.z);
     
     _ref_T_cloud.transform.rotation.x = 0;
     _ref_T_cloud.transform.rotation.y = 0;
     _ref_T_cloud.transform.rotation.z = 0;
     _ref_T_cloud.transform.rotation.w = 1;
+}
+
+bool ObjectCluster::categorizeCluster() {
+    
+    //Simple categories based on size
+    if (_size_x < 0.2 && _size_y < 0.08 && _size_z < 0.5) {
+        
+        _type = Type::Object;
+        _marker.color.r = 0.5;
+        _marker.color.g = 1.0;
+        _marker.color.b = 1.0;
+    
+    } else if (_size_z < 1) {
+        
+        _type = Type::Container;
+        _marker.color.r = 0.1;
+        _marker.color.g = 1.0;
+        _marker.color.b = 0.1;
+        
+    } else {
+        
+        _type = Type::None;
+        _marker.color.r = 0.8;
+        _marker.color.g = 0.8;
+        _marker.color.b = 0.8;
+    }
+    
+    return true;
 }
 
 bool ObjectCluster::findPoint(Point searchPoint, float radius) {
@@ -146,14 +183,56 @@ bool ObjectCluster::findPoint(Point searchPoint, float radius) {
 //                     std::cout << std::endl;
                 
         _selected_cluster = true;
+       _marker.color.a = 0.6;
         
     } else {
+        _marker.color.a = 0.3; 
         _selected_cluster = false;
     }
     
     return _selected_cluster;
 }
 
+bool ObjectCluster::fillTransformGoal() {
+    
+    if (_type == Type::None){ 
+        return false;
+    }
+    
+
+    _ref_T_goal.header.stamp = ros::Time::now();
+        
+    _ref_T_goal.header.frame_id = _cloud->header.frame_id;
+    
+    if (_type == Type::Object){
+        _ref_T_goal.child_frame_id = "object_goal";
+
+        //AABB  
+        _ref_T_goal.transform.translation.x = (0.5 * (_max_point_AABB.x + _min_point_AABB.x)) - _size_x/2.0;
+        _ref_T_goal.transform.translation.y = 0.5 * (_max_point_AABB.y + _min_point_AABB.y);
+        _ref_T_goal.transform.translation.z = 0.5 * (_max_point_AABB.z + _min_point_AABB.z);
+        
+    } else if (_type == Type::Container) {
+        _ref_T_goal.child_frame_id = "container_goal";
+
+        _ref_T_goal.transform.translation.x = (0.5 * (_max_point_AABB.x + _min_point_AABB.x)) - (2.0/3.0 * (_size_x/2.0));
+        _ref_T_goal.transform.translation.y = 0.5 * (_max_point_AABB.y + _min_point_AABB.y);
+        _ref_T_goal.transform.translation.z = 0.5 * (_max_point_AABB.z + _min_point_AABB.z) + _size_z/2 + 0.1;
+        
+    }
+    
+    _ref_T_goal.transform.rotation.x = 0;
+    _ref_T_goal.transform.rotation.y = 0;
+    _ref_T_goal.transform.rotation.z = 0;
+    _ref_T_goal.transform.rotation.w = 1;
+    
+        //OBB TRIAL, IT IS WRONG
+    //         msg.transform.translation.x = object_clusters.at(i).mass_center(0) + object_clusters.at(i).min_point_OBB.y;
+    //         msg.transform.translation.y = object_clusters.at(i).mass_center(1) + (object_clusters.at(i).max_point_OBB.z - object_clusters.at(i).min_point_OBB.z)/2;
+    //         msg.transform.translation.z = object_clusters.at(i).mass_center(2) + (object_clusters.at(i).max_point_OBB.x - object_clusters.at(i).min_point_OBB.x)/2;
+
+    return true;
+}
 
 
 ObjectClusterExtractor::ObjectClusterExtractor (ros::NodeHandle* nh) {
@@ -226,18 +305,6 @@ int ObjectClusterExtractor::run () {
 
     //Euclidean Cluster Extraction, to divide each box
     clusterExtraction();
-    
-    Point searchPoint(refcloud_T_goal.transform.translation.x, refcloud_T_goal.transform.translation.y, refcloud_T_goal.transform.translation.z);
-    uint selected = -1;
-    for (int i=0; i<n_clusters; i++) {
-        
-        if (object_clusters.at(i).findPoint(searchPoint)) {
-            if (selected != -1) {
-                std::cout << "STRANGE ERROR: search point found on two different clusters" << std::endl;
-            }
-            selected = i;
-        }
-    }
         
     if (publishSingleObjBoundingBox)
     {  
@@ -257,10 +324,32 @@ int ObjectClusterExtractor::run () {
 //         }
         
         if (object_clusters.at(i).momentOfInertiaAABB()) {
-            std::cout << "WARN: momentOfInertiaAABB gets return false for cluster '" << std::to_string(i) << "'" << std::endl;
+            //return always false IDK why...
+            //std::cout << "WARN: momentOfInertiaAABB gets return false for cluster '" << std::to_string(i) << "'" << std::endl;
+        }
+        object_clusters.at(i).categorizeCluster();
+        
+    }
+    
+    Point searchPoint(refcloud_T_laser.transform.translation.x, refcloud_T_laser.transform.translation.y, refcloud_T_laser.transform.translation.z);
+    for (int i=0; i<n_clusters; i++) {
+        
+        if (object_clusters.at(i).findPoint(searchPoint)) {
+                
+            if (object_clusters.at(i).fillTransformGoal()) {
+                
+                goal_transf_msg = object_clusters.at(i)._ref_T_goal;
+                goal_to_send = true;
+            }
         }
     }
-
+    
+    if ( goal_to_send ) {
+    
+        goal_transf_msg.header.stamp = ros::Time::now();
+        tf_broadcaster.sendTransform( goal_transf_msg );
+    }
+    
     if (publishSingleObjBoundingBox)
     {   
 //         for (int i=0; i<n_clusters; i++) {
@@ -272,9 +361,7 @@ int ObjectClusterExtractor::run () {
             markerArrayMsg.markers.push_back(object_clusters.at(i)._marker);
         }
         
-        if (selected != -1) {
-            markerArrayMsg.markers.at(selected).color.b = 0.5;
-        }
+
         marker_pub.publish(markerArrayMsg);
     }
     
@@ -292,28 +379,6 @@ int ObjectClusterExtractor::run () {
         tf_broadcaster.sendTransform(transforms);
     }
     
-    
-    //test where are the various points
-    tf2_ros::TransformBroadcaster trial_tf;
-    std::vector<geometry_msgs::TransformStamped> msgs;
-    
-    for (int i=0; i<n_clusters; i++) {
-        geometry_msgs::TransformStamped msg = object_clusters.at(i)._ref_T_cloud;
-        msg.child_frame_id = msg.child_frame_id + "_trial";
-        
-        //OBB TRIAL, IT IS WRONG
-//         msg.transform.translation.x = object_clusters.at(i).mass_center(0) + object_clusters.at(i).min_point_OBB.y;
-//         msg.transform.translation.y = object_clusters.at(i).mass_center(1) + (object_clusters.at(i).max_point_OBB.z - object_clusters.at(i).min_point_OBB.z)/2;
-//         msg.transform.translation.z = object_clusters.at(i).mass_center(2) + (object_clusters.at(i).max_point_OBB.x - object_clusters.at(i).min_point_OBB.x)/2;
-        
-        //AABB  
-        double size_x = (object_clusters.at(i).max_point_AABB.x - object_clusters.at(i).min_point_AABB.x);
-        msg.transform.translation.x = object_clusters.at(i)._ref_T_cloud.transform.translation.x - size_x/2.0;
-        
-        msgs.emplace_back(msg);
-
-    }
-    trial_tf.sendTransform(msgs);
 
     
     return 0;
@@ -480,7 +545,7 @@ void ObjectClusterExtractor::getTransforms()
       //cam_T_pelvis = tf_buffer.lookupTransform(camera_frame, reference_frame, ros::Time(0));
       pelvis_T_wheel = tf_buffer.lookupTransform("pelvis", "wheel_1", ros::Time(0));
       pelvis_high = std::abs(pelvis_T_wheel.transform.translation.z);
-      refcloud_T_goal = tf_buffer.lookupTransform(ref_frame, "goal", ros::Time(0));
+      refcloud_T_laser = tf_buffer.lookupTransform(ref_frame, "laser", ros::Time(0));
       
     } 
     catch (tf2::TransformException &ex) {
