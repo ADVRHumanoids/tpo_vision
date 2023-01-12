@@ -143,15 +143,21 @@ void ObjectCluster::fillTransformAABB(unsigned id) {
 
 bool ObjectCluster::categorizeCluster() {
     
+    std::cout << _size_x << std::endl;
+    std::cout << _size_y << std::endl;
+    std::cout << _size_z << std::endl;
     //Simple categories based on size
-    if (_size_x < 0.2 && _size_y < 0.08 && _size_z < 0.5) {
+    if (_size_x <= 0.2 && _size_y <= 0.08 && _size_z <= 0.5) {
         
         _type = Type::Object;
         _marker.color.r = 0.5;
         _marker.color.g = 1.0;
         _marker.color.b = 1.0;
     
-    } else if (_size_z < 1) {
+    } else if ( _size_x > 0.2 && _size_x < 1 &&
+                _size_y > 0.1 && _size_y < 1 &&
+                _size_z > 0.05 && _size_z < 1 )
+    {
         
         _type = Type::Container;
         _marker.color.r = 0.1;
@@ -162,7 +168,7 @@ bool ObjectCluster::categorizeCluster() {
         
         _type = Type::None;
         _marker.color.r = 0.8;
-        _marker.color.g = 0.8;
+        _marker.color.g = 0.0;
         _marker.color.b = 0.8;
     }
     
