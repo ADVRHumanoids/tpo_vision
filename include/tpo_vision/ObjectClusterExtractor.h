@@ -46,7 +46,7 @@
 #include <pcl/features/moment_of_inertia_estimation.h>
 #include <pcl/features/fpfh_omp.h>
 
-#include <pcl/visualization/cloud_viewer.h> //to see the cloud, just for debug
+#include <tpo_msgs/ClusterObject.h>
 
 typedef pcl::PointXYZ Point;
 typedef pcl::PointCloud<Point> PointCloud;
@@ -69,12 +69,10 @@ public:
     PointCloud::Ptr _cloud;
     
     bool momentOfInertiaOBB();
-    void fillMarkerOBB(unsigned id);
-    void fillTransformOBB(unsigned id);
-    
     bool momentOfInertiaAABB();
-    void fillMarkerAABB(unsigned id);
-    void fillTransformAABB(unsigned id);
+
+    void fillMarker(unsigned id);
+    void fillTransform(unsigned id);
     
     bool fillTransformGoal();
     
@@ -86,19 +84,15 @@ public:
     
     bool categorizeCluster();
     
-    
-
-public: //public here for trials. then put private
-    
     pcl::MomentOfInertiaEstimation <Point> _feature_extractor;
-    pcl::PointXYZ _min_point_AABB;
-    pcl::PointXYZ _max_point_AABB;
-    pcl::PointXYZ _min_point_OBB;
-    pcl::PointXYZ _max_point_OBB;
-    pcl::PointXYZ _position_OBB;
-    double _size_x, _size_y, _size_z;
-    Eigen::Matrix3f _rotational_matrix_OBB;
-    Eigen::Vector3f _mass_center;
+    
+    //This will be different according to AABB or OBB method
+    Eigen::Vector3f _dimensions;
+    Eigen::Vector3f _position;
+    Eigen::Quaternionf _rotation;
+
+    
+private:
     
     pcl::KdTreeFLANN<Point> _kdtree;
     std::vector<int> _point_idx_found; //to store index of surrounding points 
@@ -143,6 +137,9 @@ private:
     visualization_msgs::MarkerArray markerArrayMsg;
     tf2_ros::TransformBroadcaster tf_broadcaster;
     std::vector<geometry_msgs::TransformStamped> transforms;
+    
+    ros::ServiceServer selected_object_srv;
+    bool selectedObjectClbk(tpo_msgs::ClusterObject::Request &req, tpo_msgs::ClusterObject::Response &res);
 
     //phases methods
     bool filterOnZaxis();
@@ -158,14 +155,10 @@ private:
     PointCloud::Ptr cloud;  
     PointCloud::Ptr cloud_plane;  
     PointCloud::Ptr cloud_objects;  
+        
+    //ros::Publisher tmp_pub;
     
-    pcl::visualization::PCLVisualizer::Ptr viewer;
-    
-    ros::Publisher tmp_pub;
-    
-    bool goal_to_send = false;
-    geometry_msgs::TransformStamped goal_transf_msg;
-
+    int selected_cluster = -1;
 
 };
 
