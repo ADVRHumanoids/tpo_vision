@@ -316,6 +316,7 @@ int ObjectClusterExtractor::run () {
         
     }
     
+    selected_cluster = -1;
     Point searchPoint(refcloud_T_laser.transform.translation.x, refcloud_T_laser.transform.translation.y, refcloud_T_laser.transform.translation.z);
     for (int i=0; i<n_clusters; i++) {
         
@@ -512,43 +513,47 @@ bool ObjectClusterExtractor::selectedObjectClbk(tpo_msgs::ClusterObject::Request
     
     //req is empty
     
+    res.header.stamp = ros::Time::now();
+    
     if (selected_cluster == -1) {
         ROS_WARN_STREAM_THROTTLE(1, "No clusters selected!");
-        return false;
-    }
+        res.type = "none";
+        
+    } else {
     
-    res.header.stamp = ros::Time::now();
-    res.header.frame_id = object_clusters.at(selected_cluster)._cloud->header.frame_id;
-    res.child_frame_id = "box_cloud_" + std::to_string(selected_cluster);
-    
-    res.w_T_object.translation.x = object_clusters.at(selected_cluster)._position (0); 
-    res.w_T_object.translation.y = object_clusters.at(selected_cluster)._position (1);
-    res.w_T_object.translation.z = object_clusters.at(selected_cluster)._position (2);
-    
-    res.w_T_object.rotation.x = object_clusters.at(selected_cluster)._rotation.x();
-    res.w_T_object.rotation.y = object_clusters.at(selected_cluster)._rotation.y();
-    res.w_T_object.rotation.z = object_clusters.at(selected_cluster)._rotation.z();
-    res.w_T_object.rotation.w = object_clusters.at(selected_cluster)._rotation.w();
-    
-    res.dimensions.x = object_clusters.at(selected_cluster)._dimensions(0);
-    res.dimensions.y = object_clusters.at(selected_cluster)._dimensions(1);
-    res.dimensions.z = object_clusters.at(selected_cluster)._dimensions(2);
-    
-    switch (object_clusters.at(selected_cluster)._type) {
-        case ObjectCluster::Type::Surface: {
-            res.type = "surface";
-            break;
-        }
-        case ObjectCluster::Type::Container: {
-            res.type = "container";
-            break;
-        }
-        case ObjectCluster::Type::Object: {
-            res.type = "object";
-            break;
-        }
-        default: {
-            res.type = "none";
+        //cloud frame id is ref_frame, which is torso_2 as in header file
+        res.header.frame_id = object_clusters.at(selected_cluster)._cloud->header.frame_id;
+        res.child_frame_id = "box_cloud_" + std::to_string(selected_cluster);
+        
+        res.ref_T_object.translation.x = object_clusters.at(selected_cluster)._position (0); 
+        res.ref_T_object.translation.y = object_clusters.at(selected_cluster)._position (1);
+        res.ref_T_object.translation.z = object_clusters.at(selected_cluster)._position (2);
+        
+        res.ref_T_object.rotation.x = object_clusters.at(selected_cluster)._rotation.x();
+        res.ref_T_object.rotation.y = object_clusters.at(selected_cluster)._rotation.y();
+        res.ref_T_object.rotation.z = object_clusters.at(selected_cluster)._rotation.z();
+        res.ref_T_object.rotation.w = object_clusters.at(selected_cluster)._rotation.w();
+        
+        res.dimensions.x = object_clusters.at(selected_cluster)._dimensions(0);
+        res.dimensions.y = object_clusters.at(selected_cluster)._dimensions(1);
+        res.dimensions.z = object_clusters.at(selected_cluster)._dimensions(2);
+        
+        switch (object_clusters.at(selected_cluster)._type) {
+            case ObjectCluster::Type::Surface: {
+                res.type = "surface";
+                break;
+            }
+            case ObjectCluster::Type::Container: {
+                res.type = "container";
+                break;
+            }
+            case ObjectCluster::Type::Object: {
+                res.type = "object";
+                break;
+            }
+            default: {
+                res.type = "none";
+            }
         }
     }
         
