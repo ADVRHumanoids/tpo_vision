@@ -101,6 +101,8 @@ target_link_libraries(${PROJECT_NAME}_objectClusterExtractor
     pcl_visualization
     ${OpenCV_LIBS}
 )
+add_dependencies(${PROJECT_NAME}_objectClusterExtractor tpo_msgs_generate_messages_cpp)
+
 
 add_executable(${PROJECT_NAME}_ExtractSinglePointFrom2D src/ExtractSinglePointFrom2D.cpp)
 set_target_properties(${PROJECT_NAME}_ExtractSinglePointFrom2D PROPERTIES OUTPUT_NAME extractSinglePointFrom2D PREFIX "")
