@@ -262,7 +262,7 @@ ObjectClusterExtractor::ObjectClusterExtractor (ros::NodeHandle* nh) {
     cloud_plane = boost::make_shared<PointCloud>();
     cloud_objects = boost::make_shared<PointCloud>();
     
-    if (publishSingleObjBoundingBox){
+    if (publishSingleObjBoundingBox) {
         marker_pub = nh->advertise<visualization_msgs::MarkerArray>("objects_bounding", 1);
     }
     
@@ -496,6 +496,11 @@ bool ObjectClusterExtractor::clusterExtraction(){
         }
         
         n_clusters++;
+        
+        if (n_clusters >= object_clusters.size()) {
+            
+            break;
+        }
     }
 
     //std::cout << "Found " << cluster_indices.size() << " clusters " << std::endl;
