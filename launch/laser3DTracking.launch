@@ -43,7 +43,7 @@
             <param name="point_cloud_topic" value="/$(arg point_cloud)"/>
             
             <param name="ref_frame" value="$(arg ref_frame)"/>
-            <param name="laser_spot_frame" value="laser_spot"/>
+            <param name="laser_spot_frame" value="laser"/>
             <param name="camera_frame" value="$(arg camera_frame)"/>
             
             <param name="detection_confidence_threshold" value="$(arg detection_confidence_threshold)"/>
@@ -80,8 +80,9 @@
         </node>
     </group>
     
+<!--    
     <include file="$(find tpo_vision)/launch/objectClusterExtractor.launch">>
-    </include>
+    </include>-->
 
         
     <node if="$(arg rviz)" type="rviz" name="rviz" pkg="rviz" args="-d $(find tpo_vision)/config/rviz/tpoLaser.rviz" >
