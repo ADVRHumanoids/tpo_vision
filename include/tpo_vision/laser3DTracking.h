@@ -21,11 +21,16 @@
 #include <tf2_ros/transform_broadcaster.h>
 #include <tf2_ros/transform_listener.h>
 #include <geometry_msgs/TransformStamped.h>
+#include <ddynamic_reconfigure/ddynamic_reconfigure.h>
 
 #include <pcl_ros/point_cloud.h>
 #include <pcl_ros/transforms.h>
 
 #include <tpo_msgs/KeypointImage.h>
+
+#include <Eigen/Dense>
+
+#include <utils/SecondOrderFilter.h>
 
 typedef pcl::PointCloud<pcl::PointXYZ> PointCloud;
 
@@ -33,7 +38,7 @@ class Laser3DTracking {
     
     
 public:
-    Laser3DTracking(ros::NodeHandle* nh);
+    Laser3DTracking(ros::NodeHandle* nh, const double& period);
     
     bool isReady();
     
@@ -41,6 +46,7 @@ public:
     
 private:
     ros::NodeHandle* nh;
+    double period;
     
     std::string camera_frame;
     std::string ref_frame ;
@@ -53,7 +59,7 @@ private:
     tpo_msgs::KeypointImage keypoint_image;
     
     tf2_ros::TransformBroadcaster tf_broadcaster;
-    geometry_msgs::TransformStamped ref_T_spot;
+    std::vector<geometry_msgs::TransformStamped> ref_T_spot; //one for raw, other for filtered
     
     tf2_ros::Buffer tf_buffer;
     std::unique_ptr<tf2_ros::TransformListener> tf_listener;
@@ -66,7 +72,15 @@ private:
 
     bool sendTransformFrom2D();
     bool updateTransform();
-
+    
+    /***************  FILTER    **********/
+    tpo::utils::FilterWrap<Eigen::Vector3d>::Ptr _laser_pos_filter;
+    double _filter_damping, _filter_bw;
+    
+    std::unique_ptr<ddynamic_reconfigure::DDynamicReconfigure> _ddr_server;
+    void ddr_callback_filter_damping(double new_value);
+    void ddr_callback_filter_bw(double new_value);
+    
 };
 
 #endif // LASER3DTRACKING_H

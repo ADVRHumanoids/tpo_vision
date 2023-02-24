@@ -15,15 +15,17 @@ find_package(catkin REQUIRED COMPONENTS
     tf2 
     tf2_ros
     cv_bridge
-    dynamic_reconfigure
+    ddynamic_reconfigure
     image_transport
     tpo_msgs
+    utils
 )
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 find_package(OpenCV REQUIRED)
 #include_directories(${OpenCV_INCLUDE_DIRS})
+find_package(Eigen3 REQUIRED)
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
@@ -75,6 +77,8 @@ include_directories(
   include
   ${catkin_INCLUDE_DIRS}
   ${PCL_INCLUDE_DIRS}
+  ${EIGEN3_INCLUDE_DIRS}
+
 )
 
 ## Declare a C++ library
@@ -117,6 +121,7 @@ target_link_libraries(${PROJECT_NAME}_laser3DTracking
     ${catkin_LIBRARIES}
     pcl_visualization
     ${OpenCV_LIBS}
+    utils_utils
 )
 add_dependencies(${PROJECT_NAME}_laser3DTracking tpo_msgs_generate_messages_cpp)
 

@@ -21,7 +21,7 @@
     <arg name="camera_frame" default="$(arg camera)_color_optical_frame" />
     
     <arg name="detection_confidence_threshold" default="0.4" />
-    <arg name="cloud_detection_max_sec_diff" default="5" />
+    <arg name="cloud_detection_max_sec_diff" default="4" />
     
     <arg name="keypoint_topic" default="/detection_output_keypoint" />
     <arg name="pub_out_images" default="true" />
@@ -40,6 +40,9 @@
 
         <node pkg="tpo_vision" name="laser3DTracking"
             type="laser3DTracking" output="screen" respawn="false">
+    
+            <param name="rate" value="100"/>
+
             <param name="point_cloud_topic" value="/$(arg point_cloud)"/>
             
             <param name="ref_frame" value="$(arg ref_frame)"/>
@@ -50,6 +53,9 @@
             <param name="cloud_detection_max_sec_diff" value="$(arg cloud_detection_max_sec_diff)"/>
             
             <param name="keypoint_topic" value="$(arg keypoint_topic)"/>
+            
+            <param name="damping" value="1"/>
+            <param name="bw" value="9"/>
             
         </node>
         

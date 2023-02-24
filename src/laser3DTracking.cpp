@@ -16,9 +16,10 @@
 
 #include <tpo_vision/laser3DTracking.h>
 
-Laser3DTracking::Laser3DTracking (ros::NodeHandle* nh) {
+Laser3DTracking::Laser3DTracking (ros::NodeHandle* nh, const double& period) {
     
     this->nh = nh;
+    this->period = period;
     
     tf_listener = std::make_unique<tf2_ros::TransformListener>(tf_buffer);
     
@@ -41,8 +42,29 @@ Laser3DTracking::Laser3DTracking (ros::NodeHandle* nh) {
     cloud_sub = nh->subscribe<PointCloud>(pc_topic, 1, &Laser3DTracking::cloudClbk, this);
     cloud = boost::make_shared<PointCloud>();
     
-    ref_T_spot.header.frame_id = ref_frame;
-    ref_T_spot.child_frame_id = laser_spot_frame;
+    ref_T_spot.resize(2);
+    ref_T_spot.at(0).header.frame_id = ref_frame;
+    ref_T_spot.at(0).child_frame_id = laser_spot_frame;
+    ref_T_spot.at(0).transform.rotation.w = 1;
+
+    ref_T_spot.at(1).header.frame_id = ref_frame;
+    ref_T_spot.at(1).child_frame_id = laser_spot_frame + "_raw";
+    ref_T_spot.at(1).transform.rotation.w = 1;
+
+    
+    /************************************************ FILTER  ***************************/
+    
+    nh->param<double>("damping", _filter_damping, 1);
+    nh->param<double>("bw", _filter_bw, 9);
+
+    _laser_pos_filter = std::make_shared<tpo::utils::FilterWrap<Eigen::Vector3d>>(_filter_damping, _filter_bw, period, 3);
+        
+    _ddr_server = std::make_unique<ddynamic_reconfigure::DDynamicReconfigure>(*nh);
+    _ddr_server->registerVariable<double>("damping", _filter_damping, boost::bind(&Laser3DTracking::ddr_callback_filter_damping, this, _1), "damping", (double)0, (double)10, "laser_filter");
+    _ddr_server->registerVariable<double>("bw", _filter_bw, boost::bind(&Laser3DTracking::ddr_callback_filter_bw, this, _1), "bw", (double)0, (double)50, "laser_filter");
+    _ddr_server->registerVariable<double>("detection_confidence_threshold", &detection_confidence_threshold, "Under this confidence (coming from 2d pixel image) the point is considered invalid, and no relative tf is published", 0, 1, "detection");
+    _ddr_server->registerVariable<double>("cloud_detection_max_sec_diff", &cloud_detection_max_sec_diff, "If point cloud and detection keypoint have a timestamp with difference bigger than this value, no relative tf is published", 0, 10, "detection");
+    _ddr_server->publishServicesTopics();
     
 }
 
@@ -142,15 +164,22 @@ bool Laser3DTracking::sendTransformFrom2D() {
 
 bool Laser3DTracking::updateTransform ()
 {
-    ref_T_spot.header.stamp = ros::Time::now();
+    ref_T_spot.at(0).header.stamp = ros::Time::now();
+    ref_T_spot.at(1).header.stamp = ref_T_spot.at(0).header.stamp;
     
     auto pointXYZ = cloud->at(keypoint_image.x_pixel, keypoint_image.y_pixel);
     
-    ref_T_spot.transform.translation.x = pointXYZ.x;
-    ref_T_spot.transform.translation.y = pointXYZ.y;
-    ref_T_spot.transform.translation.z = pointXYZ.z;
+    Eigen::Vector3d vec, vec_filt;
+    vec << pointXYZ.x, pointXYZ.y, pointXYZ.z;
+    vec_filt = _laser_pos_filter->process(vec);
     
-    ref_T_spot.transform.rotation.w = 1;
+    ref_T_spot.at(0).transform.translation.x = vec_filt(0);
+    ref_T_spot.at(0).transform.translation.y = vec_filt(1);
+    ref_T_spot.at(0).transform.translation.z = vec_filt(2);
+    ref_T_spot.at(1).transform.translation.x = pointXYZ.x;
+    ref_T_spot.at(1).transform.translation.y = pointXYZ.y;
+    ref_T_spot.at(1).transform.translation.z = pointXYZ.z;
+    
     
     return true;
 }
@@ -192,6 +221,17 @@ void Laser3DTracking::cameraInfoClbk(const sensor_msgs::CameraInfoConstPtr& msg)
 }
 **/
 
+void Laser3DTracking::ddr_callback_filter_damping(double new_value) {
+    
+    _filter_damping = new_value;
+    _laser_pos_filter->reset(_filter_damping, _filter_bw);
+}
+void Laser3DTracking::ddr_callback_filter_bw(double new_value) {
+    
+    _filter_bw = new_value;
+    _laser_pos_filter->reset(_filter_damping, _filter_bw);
+
+}
 
 
 /******************************** *****************************************/
@@ -201,7 +241,10 @@ int main ( int argc, char **argv ) {
     ros::init ( argc, argv, "Laser3DTracking" );
     ros::NodeHandle nh("~");
     
-    Laser3DTracking laser3DTracking(&nh);
+    double rate;
+    nh.param<double>("rate", rate, 100);
+    
+    Laser3DTracking laser3DTracking(&nh, 1.0/rate);
     
     ros::Rate r0(100);
     while(ros::ok()) {
@@ -215,7 +258,7 @@ int main ( int argc, char **argv ) {
     }
     
     
-    ros::Rate r(10);
+    ros::Rate r(rate);
     while(ros::ok()) {
         
         laser3DTracking.run();
