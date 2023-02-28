@@ -56,7 +56,6 @@ class DetectorManager():
     new_image = False
     
     def __init__(self):
-        
 
         
         ### Params
