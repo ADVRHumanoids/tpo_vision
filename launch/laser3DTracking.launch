@@ -11,7 +11,7 @@
     
     <arg name="rviz" default="false"/>
     
-    <arg name="dl_rate" default="5"/>
+    <arg name="dl_rate" default="30"/>
     <arg name="tracking_rate" default="100"/>
 
     <arg name="camera" default="D435_head_camera"/>
@@ -28,6 +28,7 @@
     
     <arg name="keypoint_topic" default="/detection_output_keypoint" />
     <arg name="pub_out_images" default="true" />
+    <arg name="pub_out_images_all_keypoints" default="false" />
     <arg name="pub_out_images_topic" default="/detection_output_img" />
     
     <arg name="show_images" default="false"/>
@@ -84,6 +85,7 @@
             
             <param name="pub_out_keypoint_topic" value="$(arg keypoint_topic)"/>
             <param name="pub_out_images" value="$(arg pub_out_images)"/>
+            <param name="pub_out_images_all_keypoints" value="$(arg pub_out_images_all_keypoints)"/>
             <param name="pub_out_images_topic" value="$(arg pub_out_images_topic)"/>
             
             <param name="model_name" value="$(arg model_name)"/>

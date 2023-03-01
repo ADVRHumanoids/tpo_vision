@@ -105,7 +105,6 @@ class NoYoloModel(GenericModel) :
         
         self.__process_image(cv_image_input)
         out = self.model(self.tensor_images)[0]
-        print(out)
         
         return out
     
@@ -184,6 +183,7 @@ class DetectorManager():
         
         pub_out_keypoint_topic = rospy.get_param('~pub_out_keypoint_topic', "/detection_output_keypoint")
         self.pub_out_images = rospy.get_param('~pub_out_images', True)
+        self.pub_out_all_keypoints = rospy.get_param('~pub_out_images_all_keypoints', False)
         
         pub_out_images_topic = rospy.get_param('~pub_out_images_topic', "/detection_output_img")
         
@@ -295,18 +295,20 @@ class DetectorManager():
             self.__pubKeypoint(stamp)
             
             if self.pub_out_images:
-                #self.__pubImageWithRectangle()
-                self.__pubImageWithAllRectangles()
+                self.__pubImageWithRectangle()
+
         else:
             self.__pubKeypoint(stamp, box[best_index], score[best_index], label[best_index])
             
             if self.pub_out_images:
-                #self.__pubImageWithRectangle(box[best_index], label[best_index])
-                self.__pubImageWithAllRectangles(box, label)
+                if self.pub_out_all_keypoints:
+                    self.__pubImageWithAllRectangles(box, label)
+                else:
+                    self.__pubImageWithRectangle(box[best_index], label[best_index])
+                
             
 
     def __pubImageWithRectangle(self, box=None, label=None):
-        
         
         #first convert back to unit8
         self.cv_image_output = torchvision.transforms.functional.convert_image_dtype(
