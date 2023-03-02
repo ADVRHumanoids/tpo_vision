@@ -9,6 +9,8 @@ with spunti taken from https://github.com/vvasilo/yolov3_pytorch_ros/blob/master
 #import sys
 import os
 import numpy as np
+import time
+
 
 # Pytorch stuff
 import torch
@@ -118,11 +120,11 @@ class YoloModel(GenericModel) :
 
         if device == 'cpu' :
             self.device = torch.device('cpu')
-            self.model = torch.hub.load('ultralytics/yolov5', 'custom', path=model_path, force_reload=True, map_location=torch.device('cpu'))
+            self.model = torch.hub.load('/home/tori/TelePhysicalOperation/YoloTutorial/yolov5', 'custom', source='local', path=model_path, force_reload=True, map_location=torch.device('cpu'))
 
         elif device == 'gpu' :
             self.device = torch.device('cuda')
-            self.model = torch.hub.load('ultralytics/yolov5', 'custom', path=model_path, force_reload=True)
+            self.model = torch.hub.load('/home/tori/TelePhysicalOperation/YoloTutorial/yolov5', 'custom', source='local', path=model_path, force_reload=True)
        
         else:
             raise Exception("Invalid device " + device)   
@@ -266,10 +268,17 @@ class DetectorManager():
             return False
         
         with torch.no_grad():
-
+            
+            #tic = rospy.Time().now()
+            tic_py = time.time()
             self.out = self.model_helper.infer(self.cv_image_input)
             #self.out = non_max_suppression(out, 80, self.confidence_th, self.nms_th)
-    
+        
+            #toc = rospy.Time().now()
+            toc_py = time.time()
+            #rospy.loginfo ('Inference time: %s s', (toc-tic).to_sec())
+            rospy.loginfo ('Inference time py: %s s', toc_py-tic_py )
+
             #images[0] = images[0].detach().cpu()
         
         if (len(self.out['scores']) == 0):
@@ -406,11 +415,7 @@ if __name__=="__main__":
     rate = rospy.Rate(rate_param) # ROS Rate
     
     while not rospy.is_shutdown():
-        tic = rospy.Time().now()
         new_infer = dm.infer()
-        toc = rospy.Time().now()
-        if new_infer: 
-            rospy.loginfo ('Inference time: %s s', (toc-tic).to_sec())
         rate.sleep()
     
 
