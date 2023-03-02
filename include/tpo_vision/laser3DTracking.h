@@ -32,6 +32,8 @@
 
 #include <utils/SecondOrderFilter.h>
 
+#include <mutex>
+
 typedef pcl::PointCloud<pcl::PointXYZ> PointCloud;
 
 class Laser3DTracking {
@@ -61,12 +63,13 @@ private:
     tf2_ros::TransformBroadcaster tf_broadcaster;
     std::vector<geometry_msgs::TransformStamped> ref_T_spot; //one for raw, other for filtered
     
-    tf2_ros::Buffer tf_buffer;
-    std::unique_ptr<tf2_ros::TransformListener> tf_listener;
+    //tf2_ros::Buffer tf_buffer;
+    //std::unique_ptr<tf2_ros::TransformListener> tf_listener;
 
     ros::Subscriber cloud_sub;
     void cloudClbk(const PointCloud::ConstPtr& msg);
     PointCloud::Ptr cloud;  
+    std::mutex cloud_mutex;
 
     /***************************************************** */
 

@@ -20,10 +20,10 @@
     <arg name="transport" default="compressed" /> 
     <arg name="point_cloud" value="$(arg camera)/depth/color/points" />
     
-    <arg name="ref_frame" default="$(arg camera)_color_optical_frame" />
+<!--    <arg name="ref_frame" default="$(arg camera)_color_optical_frame" />-->
     <arg name="camera_frame" default="$(arg camera)_color_optical_frame" />
     
-    <arg name="detection_confidence_threshold" default="0.4" />
+    <arg name="detection_confidence_threshold" default="0.45" />
     <arg name="cloud_detection_max_sec_diff" default="4" />
     
     <arg name="keypoint_topic" default="/detection_output_keypoint" />
@@ -49,7 +49,7 @@
 
             <param name="point_cloud_topic" value="/$(arg point_cloud)"/>
             
-            <param name="ref_frame" value="$(arg ref_frame)"/>
+<!--            <param name="ref_frame" value="$(arg ref_frame)"/>-->
             <param name="laser_spot_frame" value="laser"/>
             <param name="camera_frame" value="$(arg camera_frame)"/>
             
