@@ -315,22 +315,22 @@ class DetectorManager():
                 if self.pub_out_all_keypoints:
                     self.__pubImageWithAllRectangles(box, label)
                 else:
-                    self.__pubImageWithRectangle(box[best_index], label[best_index])
+                    self.__pubImageWithRectangle(box[best_index], score[best_index], label[best_index])
                 
             
 
-    def __pubImageWithRectangle(self, box=None, label=None):
+    def __pubImageWithRectangle(self, box=None, score=None, label=None):
         
         #first convert back to unit8
         self.cv_image_output = torchvision.transforms.functional.convert_image_dtype(
             self.model_helper.tensor_images[0].cpu(), torch.uint8).numpy().transpose([1,2,0])
         self.cv_image_output = cv2.cvtColor(self.cv_image_output, cv2.COLOR_BGR2RGB)
         
-        if (not box == None) && (score[best_index] > self.detection_confidence_threshold) :
+        if (not box == None) and (score > self.detection_confidence_threshold) :
             cv2.rectangle(self.cv_image_output, 
                           (round(box[0].item()), round(box[1].item())),
                           (round(box[2].item()), round(box[3].item())),
-                          (255,0,0), 2)
+                          (255,0,0), 3)
         
         #if label:
             #cv2.putText(self.cv_image_output, str(label.item()), (round(box[0].item()), round(box[3].item()+10)), 
