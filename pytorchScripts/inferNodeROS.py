@@ -187,6 +187,8 @@ class DetectorManager():
         self.pub_out_images = rospy.get_param('~pub_out_images', True)
         self.pub_out_all_keypoints = rospy.get_param('~pub_out_images_all_keypoints', False)
         
+        self.detection_confidence_threshold = rospy.get_param('~detection_confidence_threshold', 0)
+        
         pub_out_images_topic = rospy.get_param('~pub_out_images_topic', "/detection_output_img")
         
         #camera_info_topic = rospy.get_param('~camera_info_topic', '/D435_head_camera/color/camera_info')
@@ -324,15 +326,15 @@ class DetectorManager():
             self.model_helper.tensor_images[0].cpu(), torch.uint8).numpy().transpose([1,2,0])
         self.cv_image_output = cv2.cvtColor(self.cv_image_output, cv2.COLOR_BGR2RGB)
         
-        if not box == None:
+        if (not box == None) && (score[best_index] > self.detection_confidence_threshold) :
             cv2.rectangle(self.cv_image_output, 
                           (round(box[0].item()), round(box[1].item())),
                           (round(box[2].item()), round(box[3].item())),
                           (255,0,0), 2)
         
-        if label:
-            cv2.putText(self.cv_image_output, str(label.item()), (round(box[0].item()), round(box[3].item()+10)), 
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.9, (36,255,12), 2)
+        #if label:
+            #cv2.putText(self.cv_image_output, str(label.item()), (round(box[0].item()), round(box[3].item()+10)), 
+                        #cv2.FONT_HERSHEY_SIMPLEX, 0.9, (36,255,12), 2)
 
         
         #cv2.imshow("test_boxes", self.cv_image_output)
