@@ -16,7 +16,8 @@
 
 #include <tpo_vision/laser3DTracking.h>
 
-Laser3DTracking::Laser3DTracking (ros::NodeHandle* nh, const double& period) {
+Laser3DTracking::Laser3DTracking (ros::NodeHandle* nh, const double& period)
+{
     
     this->nh = nh;
     this->period = period;
@@ -41,6 +42,34 @@ Laser3DTracking::Laser3DTracking (ros::NodeHandle* nh, const double& period) {
     /******************* CLOUD ***************************/
     cloud_sub = nh->subscribe<PointCloud>(pc_topic, 1, &Laser3DTracking::cloudClbk, this);
     cloud = boost::make_shared<PointCloud>();
+    
+    /*************** ROS PCL FILTER **************/    
+//     if( ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Debug) ) {
+//         ros::console::notifyLoggerLevelsChanged();
+//     }
+    
+    nh->param<bool>("pcl_filter", pcl_filter, true);
+    nh->param<bool>("pub_pcl_filtered", pub_pcl_filtered, false);
+    if (pcl_filter) {
+        
+        _filter_chain = std::make_unique<filters::FilterChain<sensor_msgs::PointCloud2>>("sensor_msgs::PointCloud2");
+        if (!_filter_chain->configure("/cloud_filter_chain"))
+        {
+            ROS_ERROR_STREAM("Configuration of filter chain for is invalid, the chain will not be run.");
+            throw std::runtime_error("Filter configuration error");
+        }
+        if (pub_pcl_filtered) {
+            _filtered_pc_pub = nh->advertise<PointCloud>("cloud_filtered", 1);
+            ROS_INFO("Using PCL filter and publishing the filtered cloud");
+
+        } else {
+            ROS_INFO("Using PCL filter");
+        }
+        
+    } else {
+        ROS_INFO("Not using PCL filter");
+    }
+
     
     ref_T_spot.resize(2);
     //ref_T_spot.at(0).header.frame_id = ref_frame;
@@ -68,6 +97,25 @@ Laser3DTracking::Laser3DTracking (ros::NodeHandle* nh, const double& period) {
     
 }
 
+bool Laser3DTracking::filterCloud() { 
+    
+    //template<typename T> void toROSMsg(const pcl::PointCloud<T> &pcl_cloud, sensor_msgs::PointCloud2 &cloud)
+    pcl::toROSMsg<pcl::PointXYZ>(*cloud, ros_pc);
+    
+    if (!_filter_chain->update(ros_pc, ros_pc)) {
+        ROS_ERROR("Filtering cloud failed."); 
+        return false;
+    }
+    
+    pcl::fromROSMsg<pcl::PointXYZ>(ros_pc, *cloud);
+
+    if(pub_pcl_filtered) {
+        _filtered_pc_pub.publish(cloud);
+    }
+    
+    return true;
+}
+
 bool Laser3DTracking::isReady() {
     
     if (cloud->size() == 0) {
@@ -91,7 +139,17 @@ bool Laser3DTracking::isReady() {
 
 int Laser3DTracking::run () {
 
-    sendTransformFrom2D();
+    if (pcl_filter) {
+        //auto tick = ros::Time::now();
+        if (! filterCloud()) {
+            return -1;
+        }
+        //ROS_INFO("filter cloud time: %f", (double)(ros::Time::now() - tick).toSec() );
+    }
+    
+    if (! sendTransformFrom2D()) {
+        return -1;
+    }
 
     return 0;
 }

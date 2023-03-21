@@ -25,6 +25,7 @@
 
 #include <pcl_ros/point_cloud.h>
 #include <pcl_ros/transforms.h>
+#include <pcl_conversions/pcl_conversions.h>
 
 #include <tpo_msgs/KeypointImage.h>
 
@@ -33,6 +34,9 @@
 #include <utils/SecondOrderFilter.h>
 
 #include <mutex>
+
+#include <filters/filter_chain.hpp>
+
 
 typedef pcl::PointCloud<pcl::PointXYZ> PointCloud;
 
@@ -75,6 +79,14 @@ private:
 
     bool sendTransformFrom2D();
     bool updateTransform();
+    
+    /*************** ROS PC FILTER    **********/
+    bool pcl_filter, pub_pcl_filtered;
+    std::unique_ptr<filters::FilterChain<sensor_msgs::PointCloud2>> _filter_chain;
+    sensor_msgs::PointCloud2 ros_pc;
+    //For tests
+    ros::Publisher _filtered_pc_pub;
+    bool filterCloud();
     
     /***************  FILTER    **********/
     tpo::utils::FilterWrap<Eigen::Vector3d>::Ptr _laser_pos_filter;

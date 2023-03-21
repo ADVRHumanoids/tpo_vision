@@ -3,6 +3,9 @@
     
     <env name="ROSCONSOLE_FORMAT" value="[${severity}] [${time}] [${node}] [${function}] [${line}]: ${message}"/>
     
+    <arg name="gdb" default="false" />
+    <arg if="$(arg gdb)" name="launch-prefix" value="xterm -e gdb --args"/>
+    <arg unless="$(arg gdb)" name="launch-prefix" value=""/>
     <!--<arg name="model_name" default="fasterrcnn_mobilenet_high_e10_b4_tvt702010_laserv3.pt"/> -->
 <!--    <arg name="model_name" default="faster_rcnn_v2_e5_b1_tvt652510_data2.pt"/>-->
     <!--<arg name="model_name" default="fasterrcnn_mobilenet_high_e10_b2_tvt652510_data2.pt"/> -->
@@ -13,6 +16,8 @@
     
     <arg name="dl_rate" default="30"/>
     <arg name="tracking_rate" default="100"/>
+    <arg name="pcl_filter" default="true"/>
+    <arg name="pub_pcl_filtered" default="true"/>
 
     <arg name="camera" default="D435_head_camera"/>
     <arg name="image" default="color/image_raw"/>
@@ -41,9 +46,11 @@
     </group>
     
     <group unless="$(arg fake_tracking)" >
+        
+        <rosparam if="$(arg pcl_filter)" command="load" file="$(find tpo_vision)/config/robot_body_filter.yaml" />
 
         <node pkg="tpo_vision" name="laser3DTracking"
-            type="laser3DTracking" output="screen" respawn="false">
+            type="laser3DTracking" output="screen" respawn="false" launch-prefix="$(arg launch-prefix)">
     
             <param name="rate" value="$(arg tracking_rate)"/>
 
@@ -57,6 +64,9 @@
             <param name="cloud_detection_max_sec_diff" value="$(arg cloud_detection_max_sec_diff)"/>
             
             <param name="keypoint_topic" value="$(arg keypoint_topic)"/>
+            
+            <param name="pcl_filter" value="$(arg pcl_filter)"/>
+            <param name="pub_pcl_filtered" value="$(arg pub_pcl_filtered)"/>
             
             <param name="damping" value="1"/>
             <param name="bw" value="9"/>
@@ -75,6 +85,7 @@
 
             <param name="show_images" value="$(arg show_images)"/>
         </node> -->
+        
         <node pkg="tpo_vision" name="laserSpotDetectionDL"
             type="inferNodeROS.py" output="screen" respawn="false">
             
