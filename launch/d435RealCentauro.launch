@@ -14,8 +14,6 @@
         <arg name="enable_pointcloud" value="$(arg depth)" />
         <arg name="ordered_pc" value="$(arg depth)" />
         <arg name="align_depth" value="$(arg depth)" />
-        <arg name="output" value="boh" />
-
     </include>
     
     <include if="$(arg robot_body_filter)" file="$(find tpo_vision)/launch/filterChain.launch">
