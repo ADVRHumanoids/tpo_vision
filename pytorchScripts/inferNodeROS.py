@@ -9,6 +9,8 @@ with spunti taken from https://github.com/vvasilo/yolov3_pytorch_ros/blob/master
 #import sys
 import os
 import numpy as np
+import time
+
 
 # Pytorch stuff
 import torch
@@ -118,11 +120,11 @@ class YoloModel(GenericModel) :
 
         if device == 'cpu' :
             self.device = torch.device('cpu')
-            self.model = torch.hub.load('ultralytics/yolov5', 'custom', path=model_path, force_reload=True, map_location=torch.device('cpu'))
+            self.model = torch.hub.load('/home/tori/TelePhysicalOperation/YoloTutorial/yolov5', 'custom', source='local', path=model_path, force_reload=True, map_location=torch.device('cpu'))
 
         elif device == 'gpu' :
             self.device = torch.device('cuda')
-            self.model = torch.hub.load('ultralytics/yolov5', 'custom', path=model_path, force_reload=True)
+            self.model = torch.hub.load('/home/tori/TelePhysicalOperation/YoloTutorial/yolov5', 'custom', source='local', path=model_path, force_reload=True)
        
         else:
             raise Exception("Invalid device " + device)   
@@ -184,6 +186,8 @@ class DetectorManager():
         pub_out_keypoint_topic = rospy.get_param('~pub_out_keypoint_topic', "/detection_output_keypoint")
         self.pub_out_images = rospy.get_param('~pub_out_images', True)
         self.pub_out_all_keypoints = rospy.get_param('~pub_out_images_all_keypoints', False)
+        
+        self.detection_confidence_threshold = rospy.get_param('~detection_confidence_threshold', 0)
         
         pub_out_images_topic = rospy.get_param('~pub_out_images_topic', "/detection_output_img")
         
@@ -266,10 +270,17 @@ class DetectorManager():
             return False
         
         with torch.no_grad():
-
+            
+            #tic = rospy.Time().now()
+            tic_py = time.time()
             self.out = self.model_helper.infer(self.cv_image_input)
             #self.out = non_max_suppression(out, 80, self.confidence_th, self.nms_th)
-    
+        
+            #toc = rospy.Time().now()
+            toc_py = time.time()
+            #rospy.loginfo ('Inference time: %s s', (toc-tic).to_sec())
+            rospy.loginfo ('Inference time py: %s s', toc_py-tic_py )
+
             #images[0] = images[0].detach().cpu()
         
         if (len(self.out['scores']) == 0):
@@ -304,26 +315,26 @@ class DetectorManager():
                 if self.pub_out_all_keypoints:
                     self.__pubImageWithAllRectangles(box, label)
                 else:
-                    self.__pubImageWithRectangle(box[best_index], label[best_index])
+                    self.__pubImageWithRectangle(box[best_index], score[best_index], label[best_index])
                 
             
 
-    def __pubImageWithRectangle(self, box=None, label=None):
+    def __pubImageWithRectangle(self, box=None, score=None, label=None):
         
         #first convert back to unit8
         self.cv_image_output = torchvision.transforms.functional.convert_image_dtype(
             self.model_helper.tensor_images[0].cpu(), torch.uint8).numpy().transpose([1,2,0])
         self.cv_image_output = cv2.cvtColor(self.cv_image_output, cv2.COLOR_BGR2RGB)
         
-        if not box == None:
+        if (not box == None) and (score > self.detection_confidence_threshold) :
             cv2.rectangle(self.cv_image_output, 
                           (round(box[0].item()), round(box[1].item())),
                           (round(box[2].item()), round(box[3].item())),
-                          (255,0,0), 2)
+                          (255,0,0), 3)
         
-        if label:
-            cv2.putText(self.cv_image_output, str(label.item()), (round(box[0].item()), round(box[3].item()+10)), 
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.9, (36,255,12), 2)
+        #if label:
+            #cv2.putText(self.cv_image_output, str(label.item()), (round(box[0].item()), round(box[3].item()+10)), 
+                        #cv2.FONT_HERSHEY_SIMPLEX, 0.9, (36,255,12), 2)
 
         
         #cv2.imshow("test_boxes", self.cv_image_output)
@@ -406,11 +417,7 @@ if __name__=="__main__":
     rate = rospy.Rate(rate_param) # ROS Rate
     
     while not rospy.is_shutdown():
-        tic = rospy.Time().now()
         new_infer = dm.infer()
-        toc = rospy.Time().now()
-        if new_infer: 
-            rospy.loginfo ('Inference time: %s s', (toc-tic).to_sec())
         rate.sleep()
     
 

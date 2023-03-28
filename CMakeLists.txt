@@ -19,6 +19,7 @@ find_package(catkin REQUIRED COMPONENTS
     image_transport
     tpo_msgs
     utils
+    filters
 )
 
 ## System dependencies are found with CMake's conventions
