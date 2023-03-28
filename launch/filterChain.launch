@@ -1,11 +1,12 @@
 <?xml version="1.0"?>
 <launch>
 
-   <arg name="point_cloud"/>
-
+   <arg name="input_pc_topic"/>
+   <arg name="output_pc_topic"/>
+      
    <node name="filter" pkg="sensor_filters" type="pointcloud2_filter_chain" output="screen">
         <rosparam command="load" file="$(find tpo_vision)/config/robot_body_filter.yaml" />
-        <remap from="~input" to="/$(arg point_cloud)" />
-        <remap from="~output" to="/$(arg point_cloud)/filtered" />
+        <remap from="~input" to="/$(arg input_pc_topic)" />
+        <remap from="~output" to="/$(arg output_pc_topic)" />
     </node>
 </launch>
