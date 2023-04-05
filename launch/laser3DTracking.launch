@@ -16,14 +16,22 @@
     
     <arg name="dl_rate" default="30"/>
     <arg name="tracking_rate" default="100"/>
-    <arg name="pcl_filter" default="true"/>
-    <arg name="pub_pcl_filtered" default="true"/>
-
+    
     <arg name="camera" default="D435_head_camera"/>
     <arg name="image" default="color/image_raw"/>
     <!--  raw, compressed or theora />-->
     <arg name="transport" default="compressed" /> 
-    <arg name="point_cloud" value="$(arg camera)/depth/color/points" />
+    
+    <arg name="sub_to_filtered" default="false"/>
+
+    <arg unless="$(arg sub_to_filtered)" name="pcl_filter" default="true"/>
+    <arg unless="$(arg sub_to_filtered)" name="pub_pcl_filtered" default="true"/>
+    <arg unless="$(arg sub_to_filtered)" name="point_cloud" value="$(arg camera)/depth/color/points" />
+
+    <arg if="$(arg sub_to_filtered)" name="pcl_filter" value="true"/>
+    <arg if="$(arg sub_to_filtered)" name="pub_pcl_filtered" value="true"/>
+    <arg if="$(arg sub_to_filtered)" name="point_cloud" value="$(arg camera)/depth/color/points/filtered" />
+
     
 <!--    <arg name="ref_frame" default="$(arg camera)_color_optical_frame" />-->
     <arg name="camera_frame" default="$(arg camera)_color_optical_frame" />
