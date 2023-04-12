@@ -14,12 +14,12 @@ cloud_filter_chain:
       filter/do_shadow_test: False
       sensor/point_by_point: False
       sensor/min_distance: 0.3
-      sensor/max_distance: 5.0
+      sensor/max_distance: 4.0
       #only_links: ["ball1", "dagana_2_bottom_link", "dagana_2_top_link", "arm1_6", "arm2_6"]
       only_links: ["ball1", "ball2", "arm1_6", "arm2_6"]
       #ignored_links/everywhere: ["front_left_flipper::front_left_flipper_collision_large_wheel", "front_right_flipper::front_right_flipper_collision_large_wheel"]
       body_model/inflation/scale: 1.07
-      body_model/inflation/padding: 0.01
+      body_model/inflation/padding: 0.03
       body_model/robot_description_param: '/xbotcore/robot_description'
       transforms/buffer_length: 15.0
       transforms/timeout/reachable: 0.2
