@@ -134,7 +134,9 @@ target_link_libraries(${PROJECT_NAME}_laserSpotDetection
 )
 add_dependencies( ${PROJECT_NAME}_laserSpotDetection
     ${PROJECT_NAME}_gencfg
+    tpo_msgs_generate_messages_cpp
 )
+
 
 
 ## Rename C++ executable without prefix
