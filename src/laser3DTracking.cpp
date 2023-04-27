@@ -229,14 +229,15 @@ bool Laser3DTracking::updateTransform ()
 {
     auto pointXYZ = cloud->at(keypoint_image.x_pixel, keypoint_image.y_pixel);
     
-    if (pointXYZ.z == 0) {
+    if (pointXYZ.z == 0 || std::isnan(pointXYZ.x) || std::isnan(pointXYZ.y) || std::isnan(pointXYZ.z) ) {
     
 //         ROS_ERROR("Z distance is very small, do not ignore this: x:%f, y:%f, z:%f", pointXYZ.x, pointXYZ.y, pointXYZ.z);
 //         ROS_ERROR("x_pix:%d, y_pix%d", keypoint_image.x_pixel, keypoint_image.y_pixel);
 //         ROS_ERROR("cloud index from pixels:%d\n", keypoint_image.x_pixel * cloud->width + keypoint_image.y_pixel);
-        ROS_INFO("pixel has no corresponding pc (probably there is a hole), dropping it");
+        ROS_INFO("pixel has no corresponding pc (probably there is a hole, or it is a filtered out part of the robot), dropping it");
         return false;
     }
+    std::cout << pointXYZ.x << " " << pointXYZ.y << " " << pointXYZ.z << std::endl;
     
     ref_T_spot.at(0).header.stamp = ros::Time::now();
     ref_T_spot.at(1).header.stamp = ref_T_spot.at(0).header.stamp;

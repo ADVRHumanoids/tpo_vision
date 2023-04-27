@@ -24,12 +24,12 @@
     
     <arg name="sub_to_filtered" default="false"/>
 
-    <arg unless="$(arg sub_to_filtered)" name="pcl_filter" default="true"/>
-    <arg unless="$(arg sub_to_filtered)" name="pub_pcl_filtered" default="true"/>
+    <arg unless="$(arg sub_to_filtered)" name="pcl_filter" default="false"/>
+    <arg unless="$(arg sub_to_filtered)" name="pub_pcl_filtered" default="false"/>
     <arg unless="$(arg sub_to_filtered)" name="point_cloud" value="$(arg camera)/depth/color/points" />
 
-    <arg if="$(arg sub_to_filtered)" name="pcl_filter" value="true"/>
-    <arg if="$(arg sub_to_filtered)" name="pub_pcl_filtered" value="true"/>
+    <arg if="$(arg sub_to_filtered)" name="pcl_filter" value="false"/>
+    <arg if="$(arg sub_to_filtered)" name="pub_pcl_filtered" value="false"/>
     <arg if="$(arg sub_to_filtered)" name="point_cloud" value="$(arg camera)/depth/color/points/filtered" />
 
     

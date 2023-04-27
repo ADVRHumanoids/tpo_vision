@@ -261,9 +261,9 @@ class DetectorManager():
     def infer(self):
         
         if not self.new_image:
-            rospy.logwarn("no new image, publishing last results")
+            #rospy.logwarn("no new image, publishing last results")
             if (len(self.out['scores']) == 0):
-                rospy.logwarn("no detection found at all (len is 0)")
+                #rospy.logwarn("no detection found at all (len is 0)")
                 self.__pubROS(self.inference_stamp)
             else:
                 self.__pubROS(self.inference_stamp, self.best_index, self.out['boxes'], self.out['scores'], self.out['labels'])
@@ -279,12 +279,13 @@ class DetectorManager():
             #toc = rospy.Time().now()
             toc_py = time.time()
             #rospy.loginfo ('Inference time: %s s', (toc-tic).to_sec())
-            rospy.loginfo ('Inference time py: %s s', toc_py-tic_py )
+            #rospy.loginfo ('Inference time py: %s s', toc_py-tic_py )
+            #rospy.loginfo ('%s', toc_py-tic_py )
 
             #images[0] = images[0].detach().cpu()
         
         if (len(self.out['scores']) == 0):
-            rospy.logwarn("no detection found at all (len is 0)")
+            #rospy.logwarn("no detection found at all (len is 0)")
             self.__pubROS(self.inference_stamp)
             return False
         
