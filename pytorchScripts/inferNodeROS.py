@@ -9,6 +9,8 @@ with spunti taken from https://github.com/vvasilo/yolov3_pytorch_ros/blob/master
 #import sys
 import os
 import numpy as np
+import time
+
 
 # Pytorch stuff
 import torch
@@ -30,7 +32,9 @@ from tpo_msgs.msg import KeypointImage
 
 #TEST TRIALS; remove this
 #from drawBoxes import show_image_with_boxes, load_example_image
-
+#import sys
+#sys.path.insert(1, '/home/tori/TelePhysicalOperation/YoloTutorial/yolov5/')
+#sys.path.insert(1, '/home/tori/TelePhysicalOperation/YoloTutorial/yolov5/utils')
 
 class getCameraInfo:
     
@@ -47,18 +51,133 @@ class getCameraInfo:
         self.cam_info["height"] = msg.height
         self.sub.unregister()
 
+class GenericModel : 
+    model = None
+    device = None
+    _transform_chain = None
+    tensor_images = []
+    
+    def __init__(self):
+        pass
+        
+    def initialize(self, model_path, device='gpu'):
+        pass
+        
+    def infer(self, cv_image_input):
+        pass
+    
+class NoYoloModel(GenericModel) : 
+    
+    def __init__(self):
+        super().__init__()
+        
+    def __process_image(self, cv_image_input):
+        
+        #pil_image_input = PILImage.fromarray(self.cv_image_input) #img as opencv
+        #pil_image_input.show()
+        
+        self.tensor_images = [(self._transform_chain(cv_image_input).to(self.device))]        
+
+        #beh = torchvision.transforms.functional.to_pil_image(self.tensor_images[0], "RGB")
+       # beh.show()    
+        
+    def initialize(self, model_path, device='gpu'):
+        
+        if device == 'cpu' :
+            self.device = torch.device('cpu')
+            self.model = torch.load(model_path, map_location=torch.device('cpu'))
+     
+        elif device == 'gpu' :
+            self.device = torch.device('cuda')
+            self.model = torch.load(model_path)
+       
+        else:
+            raise Exception("Invalid device")   
+            
+        # wants a tensor
+        self._transform_chain = torchvision.transforms.Compose([
+            torchvision.transforms.ToTensor(),
+            torchvision.transforms.ConvertImageDtype(torch.float),
+            ])
+        
+        self.model.eval()
+        self.model.to(self.device)
+        
+    def infer(self, cv_image_input):
+        
+        self.__process_image(cv_image_input)
+        out = self.model(self.tensor_images)[0]
+        
+        return out
+    
+    
+class YoloModel(GenericModel) : 
+    
+    def __init__(self):
+        super().__init__()
+        
+    def initialize(self, model_path, device='gpu'):
+
+        if device == 'cpu' :
+            self.device = torch.device('cpu')
+            self.model = torch.hub.load('/home/tori/TelePhysicalOperation/YoloTutorial/yolov5', 'custom', source='local', path=model_path, force_reload=True, map_location=torch.device('cpu'))
+
+        elif device == 'gpu' :
+            self.device = torch.device('cuda')
+            self.model = torch.hub.load('/home/tori/TelePhysicalOperation/YoloTutorial/yolov5', 'custom', source='local', path=model_path, force_reload=True)
+       
+        else:
+            raise Exception("Invalid device " + device)   
+            
+        # wants a tensor?
+        self._transform_chain = torchvision.transforms.Compose([
+            torchvision.transforms.ToTensor(),
+            torchvision.transforms.ConvertImageDtype(torch.float),
+            ])
+        
+        self.model.eval()
+        self.model.to(self.device)
+        
+    def infer(self, cv_image_input):
+        
+        self.tensor_images = [(self._transform_chain(cv_image_input).to(self.device))]        
+        
+        out_yolo = self.model(cv_image_input)
+        
+        #out_yolo.print()
+        #print(out_yolo.xyxy)
+        
+        self.out = {
+            'boxes': torch.tensor(torch.zeros(len(out_yolo.xyxy[0]), 4), device=self.device),
+            'labels': torch.tensor(torch.zeros(len(out_yolo.xyxy[0])), dtype=torch.int32, device=self.device),
+            'scores': torch.tensor(torch.zeros(len(out_yolo.xyxy[0])), device=self.device)
+        }
+
+        # xyxy has is array with elements of format : 
+        # xmin    ymin    xmax   ymax  confidence  class
+        for i in range(0, len(out_yolo.xyxy[0])) :
+            self.out['boxes'][i] = out_yolo.xyxy[0][i][0:4]
+            self.out['scores'][i] = out_yolo.xyxy[0][i][4]
+            self.out['labels'][i] = out_yolo.xyxy[0][i][5].int()
+        
+        #print(self.out)
+
+        return self.out
 
 class DetectorManager():
     
     ros_image_input = ros_image_output = None
     cv_image_input = cv_image_output = np.zeros((100,100,3), np.uint8)
-    tensor_images = []
     new_image = False
+    model_helper = None
+    out = {'scores' : []}
+    best_index = -1
+    inference_stamp = None
     
     def __init__(self):
         
+        self.inference_stamp = rospy.Time.now()
 
-        
         ### Params
         camera_image_topic = rospy.get_param('~camera_image_topic', '/D435_head_camera/color/image_raw')
         self.camera_image_transport = rospy.get_param('~transport', 'compressed')
@@ -66,6 +185,9 @@ class DetectorManager():
         
         pub_out_keypoint_topic = rospy.get_param('~pub_out_keypoint_topic', "/detection_output_keypoint")
         self.pub_out_images = rospy.get_param('~pub_out_images', True)
+        self.pub_out_all_keypoints = rospy.get_param('~pub_out_images_all_keypoints', False)
+        
+        self.detection_confidence_threshold = rospy.get_param('~detection_confidence_threshold', 0)
         
         pub_out_images_topic = rospy.get_param('~pub_out_images_topic', "/detection_output_img")
         
@@ -75,6 +197,12 @@ class DetectorManager():
         
         model_name = rospy.get_param('~model_name', 'model1.pt')
         
+        if (model_name.startswith('yolo')) :
+            self.model_helper = YoloModel()
+        
+        else:
+            self.model_helper = NoYoloModel()
+        
         ############ PYTHORCH STUFF
         model_path = os.path.join(rospkg.RosPack().get_path('tpo_vision'), "../../learningStuff", model_name)
         
@@ -83,20 +211,12 @@ class DetectorManager():
         if torch.cuda.is_available():
             self.device = torch.device('cuda')
             rospy.loginfo("CUDA available, use GPU")
-            self.model = torch.load(model_path)
+            self.model_helper.initialize(model_path, 'gpu')
 
         else:
             self.device = torch.device('cpu')
             rospy.loginfo("CUDA not available, use CPU") 
-            self.model = torch.load(model_path, map_location=torch.device('cpu'))
-        
-        self.model.eval()
-        self.model.to(self.device)
-        
-        # wants a tensor
-        self.transform_chain = torchvision.transforms.Compose([torchvision.transforms.ToTensor(),
-                                    torchvision.transforms.ConvertImageDtype(torch.float)
-                                    ])
+            self.model_helper.initialize(model_path, 'cpu')
         
         ############ ROS STUFF
         
@@ -137,79 +257,116 @@ class DetectorManager():
             rospy.logerror(e)
             
         self.new_image = True
-    
-    
-    def __process_image(self):
-        
-        #pil_image_input = PILImage.fromarray(self.cv_image_input) #img as opencv
-        #pil_image_input.show()
-        
-        self.tensor_images = [(self.transform_chain(self.cv_image_input).to(self.device))]        
-
-        #beh = torchvision.transforms.functional.to_pil_image(self.tensor_images[0], "RGB")
-       # beh.show()
-
        
     def infer(self):
         
         if not self.new_image:
-            rospy.logwarn("no new image")
-            self.__pubROS()
+            #rospy.logwarn("no new image, publishing last results")
+            if (len(self.out['scores']) == 0):
+                #rospy.logwarn("no detection found at all (len is 0)")
+                self.__pubROS(self.inference_stamp)
+            else:
+                self.__pubROS(self.inference_stamp, self.best_index, self.out['boxes'], self.out['scores'], self.out['labels'])
             return False
         
-        self.__process_image()
-        
         with torch.no_grad():
+            
+            #tic = rospy.Time().now()
+            tic_py = time.time()
+            self.out = self.model_helper.infer(self.cv_image_input)
+            #self.out = non_max_suppression(out, 80, self.confidence_th, self.nms_th)
+        
+            #toc = rospy.Time().now()
+            toc_py = time.time()
+            #rospy.loginfo ('Inference time: %s s', (toc-tic).to_sec())
+            #rospy.loginfo ('Inference time py: %s s', toc_py-tic_py )
+            #rospy.loginfo ('%s', toc_py-tic_py )
 
-            out = self.model(self.tensor_images)[0]
-            #out = non_max_suppression(out, 80, self.confidence_th, self.nms_th)
-    
             #images[0] = images[0].detach().cpu()
         
-        if (len(out['scores']) == 0):
-            rospy.logwarn("no detection found at all (len is 0)")
-            self.__pubROS()
+        if (len(self.out['scores']) == 0):
+            #rospy.logwarn("no detection found at all (len is 0)")
+            self.__pubROS(self.inference_stamp)
             return False
         
         #IDK if the best box is always the first one, so lets the argmax
-        best_index = torch.argmax(out['scores'])
+        self.best_index = torch.argmax(self.out['scores'])
         
-        #show_image_with_boxes(img, out['boxes'][best_index], out['labels'][best_index])
-            
-        self.__pubROS(out['boxes'][best_index], out['scores'][best_index], out['labels'][best_index])
+        #show_image_with_boxes(img, self.out['boxes'][self.best_index], self.out['labels'][self.best_index])
+        
+        self.inference_stamp = rospy.Time.now()
+        self.__pubROS(self.inference_stamp, self.best_index, self.out['boxes'], self.out['scores'], self.out['labels'])
         
         self.new_image = False
         
         return True
     
-    def __pubROS(self, box=None, score=None, label=None):
+    def __pubROS(self, stamp, best_index=-1, box=None, score=None, label=None):
         
-        self.__pubKeypoint(box, score, label)
-        
-        if self.pub_out_images:
-            self.__pubImageWithRectangle(box, label)
+        if (best_index == -1):
+            self.__pubKeypoint(stamp)
+            
+            if self.pub_out_images:
+                self.__pubImageWithRectangle()
+
+        else:
+            self.__pubKeypoint(stamp, box[best_index], score[best_index], label[best_index])
+            
+            if self.pub_out_images:
+                if self.pub_out_all_keypoints:
+                    self.__pubImageWithAllRectangles(box, label)
+                else:
+                    self.__pubImageWithRectangle(box[best_index], score[best_index], label[best_index])
+                
             
 
-    def __pubImageWithRectangle(self, box=None, label=None):
-        
-        if not self.pub_out_images:
-            return False
+    def __pubImageWithRectangle(self, box=None, score=None, label=None):
         
         #first convert back to unit8
         self.cv_image_output = torchvision.transforms.functional.convert_image_dtype(
-            self.tensor_images[0].cpu(), torch.uint8).numpy().transpose([1,2,0])
+            self.model_helper.tensor_images[0].cpu(), torch.uint8).numpy().transpose([1,2,0])
         self.cv_image_output = cv2.cvtColor(self.cv_image_output, cv2.COLOR_BGR2RGB)
         
-        if not box == None:
+        if (not box == None) and (score > self.detection_confidence_threshold) :
             cv2.rectangle(self.cv_image_output, 
                           (round(box[0].item()), round(box[1].item())),
                           (round(box[2].item()), round(box[3].item())),
-                          (255,0,0), 2)
+                          (255,0,0), 3)
         
-        if label:
-            cv2.putText(self.cv_image_output, str(label.item()), (round(box[0].item()), round(box[3].item()+10)), 
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.9, (36,255,12), 2)
+        #if label:
+            #cv2.putText(self.cv_image_output, str(label.item()), (round(box[0].item()), round(box[3].item()+10)), 
+                        #cv2.FONT_HERSHEY_SIMPLEX, 0.9, (36,255,12), 2)
 
+        
+        #cv2.imshow("test_boxes", self.cv_image_output)
+        #cv2.waitKey()
+        
+        self.ros_image_output = self.bridge.cv2_to_compressed_imgmsg(self.cv_image_output)
+        self.ros_image_output.header.seq = self.ros_image_input.header.seq
+        self.ros_image_output.header.frame_id = self.ros_image_input.header.frame_id
+        self.ros_image_output.header.stamp = rospy.Time.now()
+        
+        self.image_pub.publish(self.ros_image_output)
+        
+    def __pubImageWithAllRectangles(self, box=None, label=None):
+        
+        #first convert back to unit8
+        self.cv_image_output = torchvision.transforms.functional.convert_image_dtype(
+            self.model_helper.tensor_images[0].cpu(), torch.uint8).numpy().transpose([1,2,0])
+        self.cv_image_output = cv2.cvtColor(self.cv_image_output, cv2.COLOR_BGR2RGB)
+        
+        if not box == None:
+            i = 0
+            for b in box:
+                cv2.rectangle(self.cv_image_output, 
+                              (round(b[0].item()), round(b[1].item())),
+                              (round(b[2].item()), round(b[3].item())),
+                              (255,0,0), 2)
+        
+                if not label == None:
+                        cv2.putText(self.cv_image_output, str(label[i].item()), (round(b[0].item()), round(b[3].item()+10)), 
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.9, (36,255,12), 2)
+                i = i+1
         
         #cv2.imshow("test_boxes", self.cv_image_output)
         #cv2.waitKey()
@@ -225,12 +382,12 @@ class DetectorManager():
     """
     box is tensor and may be still float, we round befor filling the msg
     """        
-    def __pubKeypoint(self, box=None, score=None, label=None):
+    def __pubKeypoint(self, stamp, box=None, score=None, label=None):
         
         msg = KeypointImage()
         msg.header.frame_id = self.ros_image_input.header.frame_id
         msg.header.seq = self.ros_image_input.header.seq
-        msg.header.stamp = rospy.Time.now()
+        msg.header.stamp = stamp
         
         if (not box == None) and (not score == None) and (not label == None):
         
@@ -252,19 +409,16 @@ class DetectorManager():
 if __name__=="__main__":
     # Initialize node
     rospy.init_node("laserSpotDetectionDL")
+    
+    rate_param = rospy.get_param('~rate', 5)
 
     # Define detector object
     dm = DetectorManager()
 
-    
-    rate = rospy.Rate(1) # ROS Rate
-    
+    rate = rospy.Rate(rate_param) # ROS Rate
     
     while not rospy.is_shutdown():
-        tic = rospy.Time().now()
-        dm.infer()
-        toc = rospy.Time().now()
-        rospy.logwarn ('Inference time: %s s', (toc-tic).to_sec())
+        new_infer = dm.infer()
         rate.sleep()
     
 

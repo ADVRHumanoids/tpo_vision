@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<launch>
+    
+    <arg name='depth' default='true' />
+    <arg name="serial_no" value="021122070003"/>
+    <arg name="camera" default="D435_head_camera"/>
+    <arg name="robot_body_filter" default="true"/>
+    <arg name="bag" default="true"/>
+    <arg name="bag_file_name" default="$(find telephysicaloperation)/vision" />
+
+    <include file="$(find realsense2_camera)/launch/rs_camera.launch">
+        <arg name="serial_no" value="$(arg serial_no)" />
+        <arg name="camera" value="$(arg camera)" />
+        <arg name="enable_depth" value="$(arg depth)" />
+        <arg name="enable_color" value="true" />
+        <arg name="enable_pointcloud" value="$(arg depth)" />
+        <arg name="ordered_pc" value="$(arg depth)" />
+        <arg name="align_depth" value="$(arg depth)" />
+    </include>
+    
+    <include if="$(arg robot_body_filter)" file="$(find tpo_vision)/launch/filterChain.launch">
+        <arg name="input_pc_topic" value="$(arg camera)/depth/color/points" />
+        <arg name="output_pc_topic" value="$(arg camera)/depth/color/points/filtered" />
+    </include>
+
+    <node if="$(arg bag)" pkg="rosbag" type="record" name="tpo_rosbag" args ="-o $(arg bag_file_name) 
+        /D435_head_camera/depth/color/points
+        /D435_head_camera/depth/color/points/filtered" /> 
+    
+</launch>

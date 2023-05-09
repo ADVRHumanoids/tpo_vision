@@ -80,11 +80,11 @@ def get_model_fasterrcnn(num_classes, version=1):
     
     if version == 1:
         weights = torchvision.models.detection.FasterRCNN_ResNet50_FPN_Weights.DEFAULT
-        model = torchvision.models.detection.fasterrcnn_resnet50_fpn(weigths=weights)
+        model = torchvision.models.detection.fasterrcnn_resnet50_fpn(weights=weights)
     elif version == 2:
         weights = torchvision.models.detection.FasterRCNN_ResNet50_FPN_V2_Weights.DEFAULT
         model = torchvision.models.detection.fasterrcnn_resnet50_fpn_v2(weigths=weights)
-        
+
     # get number of input features for the classifier
     in_features = model.roi_heads.box_predictor.cls_score.in_features
     
@@ -172,18 +172,28 @@ TODO
 """
 
 
+# def get_transform(train=False):
+#     custom_transforms = []
+#     custom_transforms.append(torchvision.transforms.ToTensor())
+#     if train:
+#         x=3
+#         #custom_transforms.append(torchvision.transforms.RandomHorizontalFlip())
+#         #custom_transforms.append(torchvision.transforms.RandomVerticalFlip())
+#         #custom_transforms.append(torchvision.transforms.RandomAdjustSharpness(1.3))
+#         #custom_transforms.append(torchvision.transforms.RandomAdjustSharpness(0.7))
+#         #custom_transforms.append(torchvision.transforms.RandomAutocontrast())
+#     return torchvision.transforms.Compose(custom_transforms)
+
 def get_transform(train=False):
     custom_transforms = []
     custom_transforms.append(torchvision.transforms.ToTensor())
     if train:
-        x=3
-        #custom_transforms.append(torchvision.transforms.RandomHorizontalFlip())
-        #custom_transforms.append(torchvision.transforms.RandomVerticalFlip())
-        #custom_transforms.append(torchvision.transforms.RandomAdjustSharpness(1.3))
-        #custom_transforms.append(torchvision.transforms.RandomAdjustSharpness(0.7))
-        #custom_transforms.append(torchvision.transforms.RandomAutocontrast())
+        custom_transforms.append(torchvision.transforms.RandomHorizontalFlip())
+        custom_transforms.append(torchvision.transforms.RandomVerticalFlip())
+        custom_transforms.append(torchvision.transforms.RandomAdjustSharpness(1.3))
+        custom_transforms.append(torchvision.transforms.RandomAdjustSharpness(0.7))
+        custom_transforms.append(torchvision.transforms.RandomAutocontrast())
     return torchvision.transforms.Compose(custom_transforms)
-
 
 def run(batch_size=1, num_epochs=1, model_type = 'fasterrcnn_mobilenet_low', val_percentage=0.20, test_percentage=0.10, data_name="laser_v3") :
 #if __name__ == "__main__":
@@ -193,7 +203,8 @@ def run(batch_size=1, num_epochs=1, model_type = 'fasterrcnn_mobilenet_low', val
 #    val_percentage=0.20
 #    test_percentage=0.10
     
-    #torch.manual_seed(10)if pred['scores'].size(0) > 0:
+
+    torch.manual_seed(14)
     # select device (whether GPU or CPU)
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
     
@@ -272,13 +283,13 @@ def run(batch_size=1, num_epochs=1, model_type = 'fasterrcnn_mobilenet_low', val
         
     elif model_type == 'faster_rcnn_v2':
         model = get_model_fasterrcnn(num_classes, version=2)
-        
+
     elif model_type == 'fasterrcnn_mobilenet_high':
         model = get_model_fasterrcnn_mobilenet(num_classes, version='high')
-        
+
     elif model_type == 'fasterrcnn_mobilenet_low':
         model = get_model_fasterrcnn_mobilenet(num_classes, version='low')
-        
+
     #elif model_type == 'fcos':
         #model = get_model_fcos(num_classes)
         
@@ -292,11 +303,11 @@ def run(batch_size=1, num_epochs=1, model_type = 'fasterrcnn_mobilenet_low', val
     #    model = get_model_ssd(num_classes)
         
     #elif model_type == 'ssd_lite':
-    #    model = get_model_ssdlite(num_classes)horizon
+    #    model = get_model_ssdlite(num_classes)
     
     else:
         print(f'model {model_type} not recognized')
-        #return
+        return
     
     # move model to the right device
     model.to(device)
@@ -318,12 +329,13 @@ def run(batch_size=1, num_epochs=1, model_type = 'fasterrcnn_mobilenet_low', val
         metric_logger = train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq=10)
         # update the learning rate
         lr_scheduler.step()
-        # evaluate on the test dataset
-        coco_evaluator, metric_logger_eval = evaluate(model, data_loader_val, device=device)
+        if len(data_loader_val)>0:
+            # evaluate on the validation dataset
+            coco_evaluator, metric_logger_eval = evaluate(model, data_loader_val, device=device)
         
-        ### Plotting?
-        loss_vals.append(metric_logger.loss.value)
-        loss_vals_eval.append(metric_logger_eval.loss.value)
+            ### Plotting?
+            loss_vals.append(metric_logger.loss.value)
+            loss_vals_eval.append(metric_logger_eval.loss.value)
 
     torch.save(model, model_type+ "_e"+str(num_epochs) + "_b"+str(batch_size) + "_tvt" + 
                str(math.floor(train_percentage*100)) + 
@@ -332,7 +344,6 @@ def run(batch_size=1, num_epochs=1, model_type = 'fasterrcnn_mobilenet_low', val
                "_" + data_name +".pt")
     
 
-        
     fig, (ax1, ax2) = plt.subplots(1, 2)
     ax1.plot(np.linspace(1, num_epochs, num_epochs), loss_vals, label='train')
     ax1.plot(np.linspace(1, num_epochs, num_epochs), loss_vals_eval, label='validation')

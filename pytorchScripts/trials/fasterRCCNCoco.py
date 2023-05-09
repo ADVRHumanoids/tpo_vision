@@ -14,11 +14,32 @@ import torchvision
 from PIL import Image
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 
+import sys
+sys.path.insert(1, '../')
 from CustomCocoDataset import *
 
+from engine import train_one_epoch, evaluate
+import utils
+
+def get_transform(train=False):
+    custom_transforms = []
+    custom_transforms.append(torchvision.transforms.ToTensor())
+    if train:
+        x=3
+        #custom_transforms.append(torchvision.transforms.RandomHorizontalFlip())
+        #custom_transforms.append(torchvision.transforms.RandomVerticalFlip())
+        #custom_transforms.append(torchvision.transforms.RandomAdjustSharpness(1.3))
+        #custom_transforms.append(torchvision.transforms.RandomAdjustSharpness(0.7))
+        #custom_transforms.append(torchvision.transforms.RandomAutocontrast())
+    return torchvision.transforms.Compose(custom_transforms)
+
+
 # path to your own data and coco file
-train_data_dir = 'data/coco/images'
-train_coco = 'data/coco/instances_default.json'
+#train_data_dir = 'data/coco/images'
+#train_coco = 'data/coco/instances_default.json'
+train_data_dir = '/home/tori/TelePhysicalOperation/learningStuff/data/data0/images'
+train_coco = '/home/tori/TelePhysicalOperation/learningStuff/data/data0/annotations/instances_default.json'
+
 
 # create own Dataset
 my_dataset = CustomCocoDataset(root=train_data_dir,
@@ -90,3 +111,5 @@ for epoch in range(num_epochs):
         optimizer.step()
 
         print(f'Iteration: {i}/{len_dataloader}, Loss: {losses}')
+
+torch.save(model, "bohboh.pt")

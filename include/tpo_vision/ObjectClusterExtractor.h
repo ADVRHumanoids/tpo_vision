@@ -46,7 +46,7 @@
 #include <pcl/features/moment_of_inertia_estimation.h>
 #include <pcl/features/fpfh_omp.h>
 
-#include <pcl/visualization/cloud_viewer.h> //to see the cloud, just for debug
+#include <tpo_msgs/ClusterObject.h>
 
 typedef pcl::PointXYZ Point;
 typedef pcl::PointCloud<Point> PointCloud;
@@ -58,36 +58,41 @@ public:
         
         Surface, //eg table 
         Object,  //object graspable with a single end effector
-        BigObject, // bigger object where small object can be put above/inside, maybe graspable with two arms?
+        Container, // bigger object where small object can be put above/inside, maybe graspable with two arms?
+        None,
     };
     
     ObjectCluster();
     
+    Type _type;
+    
     PointCloud::Ptr _cloud;
     
     bool momentOfInertiaOBB();
-    void fillMarkerOBB(unsigned id);
-    void fillTransformOBB(unsigned id);
-    
     bool momentOfInertiaAABB();
-    void fillMarkerAABB(unsigned id);
-    void fillTransformAABB(unsigned id);
+
+    void fillMarker(unsigned id);
+    void fillTransform(unsigned id);
+    
+    bool fillTransformGoal();
     
     visualization_msgs::Marker _marker;
     geometry_msgs::TransformStamped _ref_T_cloud;
+    geometry_msgs::TransformStamped _ref_T_goal;
     
     bool findPoint(Point searchPoint, float radius = 0.03);
-
-public: //public here for trials. then put private
+    
+    bool categorizeCluster();
     
     pcl::MomentOfInertiaEstimation <Point> _feature_extractor;
-    pcl::PointXYZ min_point_AABB;
-    pcl::PointXYZ max_point_AABB;
-    pcl::PointXYZ min_point_OBB;
-    pcl::PointXYZ max_point_OBB;
-    pcl::PointXYZ position_OBB;
-    Eigen::Matrix3f rotational_matrix_OBB;
-    Eigen::Vector3f mass_center;
+    
+    //This will be different according to AABB or OBB method
+    Eigen::Vector3f _dimensions;
+    Eigen::Vector3f _position;
+    Eigen::Quaternionf _rotation;
+
+    
+private:
     
     pcl::KdTreeFLANN<Point> _kdtree;
     std::vector<int> _point_idx_found; //to store index of surrounding points 
@@ -119,7 +124,7 @@ private:
     std::unique_ptr<tf2_ros::TransformListener> tf_listener;
     geometry_msgs::TransformStamped cam_T_pelvis;
     geometry_msgs::TransformStamped pelvis_T_wheel;
-    geometry_msgs::TransformStamped refcloud_T_goal;
+    geometry_msgs::TransformStamped refcloud_T_laser;
     double pelvis_high = 0;
 
     ros::Subscriber cloud_sub;
@@ -132,6 +137,9 @@ private:
     visualization_msgs::MarkerArray markerArrayMsg;
     tf2_ros::TransformBroadcaster tf_broadcaster;
     std::vector<geometry_msgs::TransformStamped> transforms;
+    
+    ros::ServiceServer selected_object_srv;
+    bool selectedObjectClbk(tpo_msgs::ClusterObject::Request &req, tpo_msgs::ClusterObject::Response &res);
 
     //phases methods
     bool filterOnZaxis();
@@ -147,10 +155,10 @@ private:
     PointCloud::Ptr cloud;  
     PointCloud::Ptr cloud_plane;  
     PointCloud::Ptr cloud_objects;  
+        
+    //ros::Publisher tmp_pub;
     
-    pcl::visualization::PCLVisualizer::Ptr viewer;
-    
-    ros::Publisher tmp_pub;
+    int selected_cluster = -1;
 
 };
 
