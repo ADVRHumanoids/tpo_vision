@@ -60,7 +60,7 @@ class GenericModel :
     def __init__(self):
         pass
         
-    def initialize(self, model_path, device='gpu'):
+    def initialize(self, model_path_name, device='gpu'):
         pass
         
     def infer(self, cv_image_input):
@@ -81,15 +81,15 @@ class NoYoloModel(GenericModel) :
         #beh = torchvision.transforms.functional.to_pil_image(self.tensor_images[0], "RGB")
        # beh.show()    
         
-    def initialize(self, model_path, device='gpu'):
+    def initialize(self, model_path_name, device='gpu'):
         
         if device == 'cpu' :
             self.device = torch.device('cpu')
-            self.model = torch.load(model_path, map_location=torch.device('cpu'))
+            self.model = torch.load(model_path_name, map_location=torch.device('cpu'))
      
         elif device == 'gpu' :
             self.device = torch.device('cuda')
-            self.model = torch.load(model_path)
+            self.model = torch.load(model_path_name)
        
         else:
             raise Exception("Invalid device")   
@@ -195,6 +195,7 @@ class DetectorManager():
         #getCameraInfo(camera_info_topic)
         #self.cam_info = getCameraInfo.cam_info
         
+        model_path = rospy.get_param('~model_path', os.path.join(rospkg.RosPack().get_path('tpo_vision'), "../../learningStuff"))
         model_name = rospy.get_param('~model_name', 'model1.pt')
         
         if (model_name.startswith('yolo')) :
@@ -204,19 +205,19 @@ class DetectorManager():
             self.model_helper = NoYoloModel()
         
         ############ PYTHORCH STUFF
-        model_path = os.path.join(rospkg.RosPack().get_path('tpo_vision'), "../../learningStuff", model_name)
+        model_path_name = os.path.join(model_path, model_name)
         
-        rospy.loginfo(f"Using model {model_path}")
+        rospy.loginfo(f"Using model {model_path_name}")
         
         if torch.cuda.is_available():
             self.device = torch.device('cuda')
             rospy.loginfo("CUDA available, use GPU")
-            self.model_helper.initialize(model_path, 'gpu')
+            self.model_helper.initialize(model_path_name, 'gpu')
 
         else:
             self.device = torch.device('cpu')
             rospy.loginfo("CUDA not available, use CPU") 
-            self.model_helper.initialize(model_path, 'cpu')
+            self.model_helper.initialize(model_path_name, 'cpu')
         
         ############ ROS STUFF
         

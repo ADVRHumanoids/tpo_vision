@@ -6,6 +6,9 @@
     <arg name="gdb" default="false" />
     <arg if="$(arg gdb)" name="launch-prefix" value="xterm -e gdb --args"/>
     <arg unless="$(arg gdb)" name="launch-prefix" value=""/>
+    
+    <arg name="model_path" default="$(find tpo_vision)/../../learningStuff/"/>  
+    
     <!--<arg name="model_name" default="fasterrcnn_mobilenet_high_e10_b4_tvt702010_laserv3.pt"/> -->
 <!--    <arg name="model_name" default="faster_rcnn_v2_e5_b1_tvt652510_data2.pt"/>-->
     <!--<arg name="model_name" default="fasterrcnn_mobilenet_high_e10_b2_tvt652510_data2.pt"/> -->
@@ -110,6 +113,7 @@
             <param name="pub_out_images_all_keypoints" value="$(arg pub_out_images_all_keypoints)"/>
             <param name="pub_out_images_topic" value="$(arg pub_out_images_topic)"/>
             
+            <param name="model_path" value="$(arg model_path)"/>
             <param name="model_name" value="$(arg model_name)"/>
             
         </node>
