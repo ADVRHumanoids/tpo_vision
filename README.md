@@ -1,6 +1,10 @@
 # tpo_vision
 TPO stuff with laser following
 
+### Requirments:
+- it should work on cpu only pc, but gpu (only nvidia) is preferrable
+- pytorch with matching version of cuda
+- ros obviously
 
 ### Setup and running
 
