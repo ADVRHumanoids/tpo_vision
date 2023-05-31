@@ -5,6 +5,7 @@ TPO stuff with laser following
 - it should work on cpu only pc, but gpu (only nvidia) is preferrable
 - pytorch with matching version of cuda. conda (please miniconda) can be used but I think you have to install also ros in the environent to run all
 - ros obviously
+- For fake tracking: https://github.com/torydebra/tf_visual_tools.git
 
 ### Setup and running
 
