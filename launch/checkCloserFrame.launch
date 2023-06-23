@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<launch>
+
+    <arg name="tracking_frame" default="laser" />
+    <arg name="goal_frames" default="[x_pos_link, x_neg_link, y_pos_link, y_neg_link, z_pos_link, z_neg_link]" />
+    <arg name="threshold_x" default="0.01" />
+    <arg name="threshold_y" default="0.01" />
+    <arg name="threshold_z" default="0.005" />
+    <arg name="closeness_topic_name" default="closer_frame" />
+    <arg name="rate" default="100" />
+    
+    <node name="check_closer_frame" pkg="tpo_vision" type="check_closer_frame.py" output="screen">
+        <param name="tracking_frame" value="$(arg tracking_frame)" />
+        <rosparam param="goal_frames" subst_value="True">$(arg goal_frames)</rosparam> 
+        <param name="threshold_x" value="$(arg threshold_x)" />
+        <param name="threshold_y" value="$(arg threshold_y)" />
+        <param name="threshold_z" value="$(arg threshold_z)" />
+        <param name="closeness_topic_name" value="$(arg closeness_topic_name)" />
+        <param name="rate" value="$(arg rate)" />
+    </node>
+
+</launch>
