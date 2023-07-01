@@ -117,14 +117,16 @@ public:
 private:
     ros::NodeHandle* nh;
     
-    std::string camera_frame = "D435_head_camera_color_optical_frame";
-    std::string ref_frame = "torso_2" ;
+//     std::string camera_frame;
+    std::string ref_frame;
+    std::string input_cloud_topic;
+    std::string selecting_frame;
     
     tf2_ros::Buffer tf_buffer;
     std::unique_ptr<tf2_ros::TransformListener> tf_listener;
     geometry_msgs::TransformStamped cam_T_pelvis;
     geometry_msgs::TransformStamped pelvis_T_wheel;
-    geometry_msgs::TransformStamped refcloud_T_laser;
+    geometry_msgs::TransformStamped refcloud_T_selecting_frame;
     double pelvis_high = 0;
 
     ros::Subscriber cloud_sub;
@@ -142,6 +144,7 @@ private:
     bool selectedObjectClbk(tpo_msgs::ClusterObject::Request &req, tpo_msgs::ClusterObject::Response &res);
 
     //phases methods
+    bool filter_on_z_axis, extract_plane_and_objects;
     bool filterOnZaxis();
     bool publishPlane, publishObjectsOnTable, publishSingleObjCloud;
     bool extractPlaneAndObjects();

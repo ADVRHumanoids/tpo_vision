@@ -226,7 +226,14 @@ bool ObjectCluster::fillTransformGoal() {
 ObjectClusterExtractor::ObjectClusterExtractor (ros::NodeHandle* nh) {
     
     this->nh = nh;
-    
+
+//     nh->param<std::string>("camera_frame", camera_frame, "D435_head_camera_color_optical_frame");
+    nh->param<std::string>("ref_frame", ref_frame, "torso_2");
+    nh->param<std::string>("input_cloud_topic", input_cloud_topic, "/D435_head_camera/depth/color/point");
+    nh->param<std::string>("selecting_frame", selecting_frame, "laser");
+
+    nh->param<bool>("filter_on_z_axis", filter_on_z_axis, true);
+    nh->param<bool>("extract_plane_and_objects", extract_plane_and_objects, true);
     nh->param<int>("max_clusters", max_clusters, 10);
     nh->param<bool>("publishPlane", publishPlane, true);
     nh->param<bool>("publishObjectsOnTable", publishObjectsOnTable, true);
@@ -236,7 +243,7 @@ ObjectClusterExtractor::ObjectClusterExtractor (ros::NodeHandle* nh) {
 
     tf_listener = std::make_unique<tf2_ros::TransformListener>(tf_buffer);
     
-    cloud_sub = nh->subscribe<PointCloud>("/D435_head_camera/depth/color/points", 1, &ObjectClusterExtractor::cloudClbk, this);
+    cloud_sub = nh->subscribe<PointCloud>(input_cloud_topic, 1, &ObjectClusterExtractor::cloudClbk, this);
     
     if (publishPlane) { 
         cloud_plane_pub = nh->advertise<PointCloud>("cloud_plane", 1);
@@ -284,9 +291,15 @@ int ObjectClusterExtractor::run () {
     //change reference frame
     pcl_ros::transformPointCloud (ref_frame, *cloud, *cloud, tf_buffer);
 
-    filterOnZaxis();
+    if (filter_on_z_axis){
+        filterOnZaxis();
+    }
     
-    extractPlaneAndObjects();
+    if (extract_plane_and_objects) {
+        extractPlaneAndObjects();
+    } else {
+        cloud_objects = cloud;
+    }
 
     //Euclidean Cluster Extraction, to divide each box
     clusterExtraction();
@@ -317,7 +330,7 @@ int ObjectClusterExtractor::run () {
     }
     
     selected_cluster = -1;
-    Point searchPoint(refcloud_T_laser.transform.translation.x, refcloud_T_laser.transform.translation.y, refcloud_T_laser.transform.translation.z);
+    Point searchPoint(refcloud_T_selecting_frame.transform.translation.x, refcloud_T_selecting_frame.transform.translation.y, refcloud_T_selecting_frame.transform.translation.z);
     for (int i=0; i<n_clusters; i++) {
         
         if (object_clusters.at(i).findPoint(searchPoint)) {
@@ -570,10 +583,12 @@ void ObjectClusterExtractor::getTransforms()
 {
     try {
         
-      //cam_T_pelvis = tf_buffer.lookupTransform(camera_frame, reference_frame, ros::Time(0));
-      pelvis_T_wheel = tf_buffer.lookupTransform("pelvis", "wheel_1", ros::Time(0));
-      pelvis_high = std::abs(pelvis_T_wheel.transform.translation.z);
-      refcloud_T_laser = tf_buffer.lookupTransform(ref_frame, "laser", ros::Time(0));
+        //cam_T_pelvis = tf_buffer.lookupTransform(camera_frame, reference_frame, ros::Time(0));
+        if (filter_on_z_axis) {
+            pelvis_T_wheel = tf_buffer.lookupTransform("pelvis", "wheel_1", ros::Time(0));
+            pelvis_high = std::abs(pelvis_T_wheel.transform.translation.z);
+        }
+        refcloud_T_selecting_frame = tf_buffer.lookupTransform(ref_frame, selecting_frame, ros::Time(0));
       
     } 
     catch (tf2::TransformException &ex) {

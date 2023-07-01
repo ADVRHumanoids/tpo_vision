@@ -1,5 +1,13 @@
 <?xml version="1.0"?>
 <launch>
+    
+    <arg name="ref_frame" default=""/>
+<!--    <arg name="camera_frame" default="D435_head_camera_color_optical_frame"/>-->
+    <arg name="input_cloud_topic" default="/D435_head_camera/depth/color/point"/>selecting_frame
+    <arg name="selecting_frame" default="laser"/>
+
+    <arg name="filter_on_z_axis" default="true"/>
+    <arg name="extract_plane_and_objects" default="true"/>
 
     <arg name="max_clusters" default="10"/>
     <arg name="publishPlane" default="true"/>
@@ -12,6 +20,12 @@
     <node pkg="tpo_vision" name="objectClusterExtractor"
         type="objectClusterExtractor" output="screen" respawn="false">
         
+        <param name="ref_frame" value="$(arg ref_frame)"/>
+<!--        <param name="camera_frame" value="$(arg camera_frame)"/>-->
+        <param name="selecting_frame" value="$(arg selecting_frame)"/>
+        <param name="filter_on_z_axis" value="$(arg filter_on_z_axis)"/>
+        <param name="extract_plane_and_objects" value="$(arg extract_plane_and_objects)"/>
+        <param name="input_cloud_topic" value="$(arg input_cloud_topic)"/>
         <param name="max_clusters" value="$(arg max_clusters)"/>
         <param name="publishPlane" value="$(arg publishPlane)"/>
         <param name="publishObjectsOnTable" value="$(arg publishObjectsOnTable)"/>

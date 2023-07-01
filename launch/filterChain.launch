@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <launch>
 
-   <arg name="input_pc_topic"/>
-   <arg name="output_pc_topic"/>
+   <arg name="input_pc_topic" default="/D435_camera/depth/color/points"/>
+   <arg name="output_pc_topic" default="/D435_camera/depth/color/points/filtered"/>
       
    <node name="filter" pkg="sensor_filters" type="pointcloud2_filter_chain" output="screen">
         <rosparam command="load" file="$(find tpo_vision)/config/robot_body_filter.yaml" />
