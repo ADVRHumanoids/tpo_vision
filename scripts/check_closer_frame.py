@@ -44,7 +44,7 @@ if __name__ == '__main__':
         marker.mesh_resource = "package://iit_gazebo_worlds_pkg/simpleKeyboard/meshes/arrow.dae"
         marker.pose.position.x = 0
         marker.pose.position.y = 0
-        marker.pose.position.z = 0.01
+        marker.pose.position.z = 0.005
         marker.scale.x = 0.06
         marker.scale.y = 0.08
         marker.scale.z = 0.05
@@ -101,7 +101,44 @@ if __name__ == '__main__':
             marker.color.r = 0
             marker.color.g = 0
             marker.color.b = 1  
-        
+        elif goal_frames[i] == "open_gripper_link" :
+            marker.pose.orientation.x = 0.0
+            marker.pose.orientation.y = 0.0
+            marker.pose.orientation.z = -0.7071068
+            marker.pose.orientation.w = 0.7071068
+            marker.scale.x = 5
+            marker.scale.y = 5
+            marker.scale.z = 5
+            marker.color.r = 1
+            marker.color.g = 0
+            marker.color.b = 0
+            marker.mesh_resource = "package://iit_gazebo_worlds_pkg/simpleKeyboard/meshes/openGripper.dae"
+        elif goal_frames[i] == "close_gripper_link" :
+            marker.pose.orientation.x = 0.0
+            marker.pose.orientation.y = 0.0
+            marker.pose.orientation.z = -0.7071068
+            marker.pose.orientation.w = 0.7071068
+            marker.scale.x = 5
+            marker.scale.y = 5
+            marker.scale.z = 5
+            marker.color.r = 1
+            marker.color.g = 0
+            marker.color.b = 0
+            marker.mesh_resource = "package://iit_gazebo_worlds_pkg/simpleKeyboard/meshes/closeGripper.dae"
+        elif goal_frames[i] == "stop_link" :
+            marker.pose.orientation.x = 0.0
+            marker.pose.orientation.y = 0.0
+            marker.pose.orientation.z = 0.0
+            marker.pose.orientation.w = 1.0
+            marker.scale.x = 0.05
+            marker.scale.y = 0.05
+            marker.scale.z = 0.05
+            marker.color.r = 0.3
+            marker.color.g = 0.3
+            marker.color.b = 0.3 
+            marker.mesh_resource = "package://iit_gazebo_worlds_pkg/simpleKeyboard/meshes/cross.dae"
+
+        print (goal_frames[i])
         
         markers.markers.append(marker)
         
@@ -121,6 +158,7 @@ if __name__ == '__main__':
         closer_frame = "none"
         for marker in markers.markers:
             marker.color.a = 0.5
+            marker.header.stamp = rospy.get_rostime()
         
         try:
             for i in range(len(goal_frames)):

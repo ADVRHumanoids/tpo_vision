@@ -2,7 +2,7 @@
 <launch>
 
     <arg name="tracking_frame" default="laser" />
-    <arg name="goal_frames" default="[x_pos_link, x_neg_link, y_pos_link, y_neg_link, z_pos_link, z_neg_link]" />
+    <arg name="goal_frames" default="[x_pos_link, x_neg_link, y_pos_link, y_neg_link, z_pos_link, z_neg_link, open_gripper_link, close_gripper_link, stop_link]" />
     <arg name="threshold_x" default="0.01" />
     <arg name="threshold_y" default="0.01" />
     <arg name="threshold_z" default="0.005" />
