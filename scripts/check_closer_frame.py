@@ -37,7 +37,7 @@ if __name__ == '__main__':
     
     for i in range(len(goal_frames)):
         marker = Marker()
-        marker.header.stamp = rospy.get_rostime()
+        marker.header.stamp = rospy.Time()
         marker.ns = "keyboard"
         marker.type = Marker.MESH_RESOURCE
         marker.action = Marker.ADD #add
@@ -101,6 +101,30 @@ if __name__ == '__main__':
             marker.color.r = 0
             marker.color.g = 0
             marker.color.b = 1  
+        elif goal_frames[i] == "yaw_pos_link" :
+            marker.pose.orientation.x = 1.0
+            marker.pose.orientation.y = 0.0
+            marker.pose.orientation.z = 0
+            marker.pose.orientation.w = 0
+            marker.scale.x = 2.2
+            marker.scale.y = 2.2
+            marker.scale.z = 50
+            marker.color.r = 0
+            marker.color.g = 0
+            marker.color.b = 1
+            marker.mesh_resource = "package://iit_gazebo_worlds_pkg/simpleKeyboard/meshes/arrowCircle.dae"
+        elif goal_frames[i] == "yaw_neg_link" :
+            marker.pose.orientation.x = 0.0
+            marker.pose.orientation.y = 0.0
+            marker.pose.orientation.z = 0
+            marker.pose.orientation.w = 1
+            marker.scale.x = 2.2
+            marker.scale.y = 2.2
+            marker.scale.z = 50
+            marker.color.r = 0
+            marker.color.g = 0
+            marker.color.b = 1
+            marker.mesh_resource = "package://iit_gazebo_worlds_pkg/simpleKeyboard/meshes/arrowCircle.dae"
         elif goal_frames[i] == "open_gripper_link" :
             marker.pose.orientation.x = 0.0
             marker.pose.orientation.y = 0.0
@@ -158,7 +182,6 @@ if __name__ == '__main__':
         closer_frame = "none"
         for marker in markers.markers:
             marker.color.a = 0.5
-            marker.header.stamp = rospy.get_rostime()
         
         try:
             for i in range(len(goal_frames)):
